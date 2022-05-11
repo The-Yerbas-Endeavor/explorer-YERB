@@ -521,7 +521,7 @@ html(lang='en')
           return '<div class="card-header"><strong>#{settings.locale.difficulty}</strong></div><div class="card-body"><div id="difficultyPanelLoading" class="header-panel"><i class="fa fa-spinner fa-pulse"></i></div><div id="difficultypanel" class="header-panel" style="display:none;"><span class="fas fa-sliders-h"></span>'+difficultyType+'</div></div>';
         }
         function getMasternodesPanel() {
-          return '<div class="card-header"><strong>#{settings.locale.masternodecount}</strong></div><div class="card-body"><div id="masternodePanelLoading" class="header-panel"><i class="fa fa-spinner fa-pulse"></i></div><div id="masternodepanel" class="header-panel" style="display:none;"><span id="spnMasternodeCountOnline" class="fa fa-check-circle" data-bs-toggle="tooltip" data-bs-placement="top"></span><label id="masternodeCountOnline" data-bs-toggle="tooltip" data-bs-placement="top"></label><label>&nbsp;/&nbsp;</label><label id="masternodeCountOffline" data-bs-toggle="tooltip" data-bs-placement="top"></label><span id="spnMasternodeCountOffline" class="fa fa-exclamation-triangle" data-bs-toggle="tooltip" data-bs-placement="top"></span></div></div>';
+          return '<div class="card-header"><strong>Smartnodes</strong></div><div class="card-body"><div id="masternodePanelLoading" class="header-panel"><i class="fa fa-spinner fa-pulse"></i></div><div id="masternodepanel" class="header-panel" style="display:none;"><span id="spnMasternodeCountOnline" class="fa fa-check-circle" data-bs-toggle="tooltip" data-bs-placement="top"></span><label id="masternodeCountOnline" data-bs-toggle="tooltip" data-bs-placement="top"></label><label>&nbsp;/&nbsp;</label><label id="masternodeCountOffline" data-bs-toggle="tooltip" data-bs-placement="top"></label><span id="spnMasternodeCountOffline" class="fa fa-exclamation-triangle" data-bs-toggle="tooltip" data-bs-placement="top"></span></div></div>';
         }
         function getCoinSupplyPanel() {
           var supplyType='<label id="supply"></label>';
@@ -655,7 +655,7 @@ html(lang='en')
                 li#masternodes.nav-item
                   a.nav-link(href='/masternodes')
                     span.fa.fa-share-alt
-                    span.margin-left-5 Masternodes
+                    span.margin-left-5 Smartnodes
               if settings.movement_page.enabled == true
                 li#movement.nav-item
                   a.nav-link(href='/movement')

@@ -399,11 +399,11 @@ router.get('/masternodes', function(req, res) {
     if (settings.masternodes_page.page_header.show_last_updated == true) {
       // lookup last updated date
       db.get_stats(settings.coin.name, function (stats) {
-        res.render('masternodes', {active: 'masternodes', last_updated: stats.masternodes_last_updated, showSync: db.check_show_sync_message(), styleHash: get_file_timestamp('./public/css/style.scss'), themeHash: get_file_timestamp('./public/css/themes/' + settings.shared_pages.theme.toLowerCase() + '/bootstrap.min.css'), page_title_prefix: settings.coin.name + ' Masternodes' });
+        res.render('masternodes', {active: 'masternodes', last_updated: stats.masternodes_last_updated, showSync: db.check_show_sync_message(), styleHash: get_file_timestamp('./public/css/style.scss'), themeHash: get_file_timestamp('./public/css/themes/' + settings.shared_pages.theme.toLowerCase() + '/bootstrap.min.css'), page_title_prefix: settings.coin.name + ' Smartnodes' });
       });
     } else {
       // skip lookup of the last updated date and display the page now
-      res.render('masternodes', {active: 'masternodes', last_updated: null, showSync: db.check_show_sync_message(), styleHash: get_file_timestamp('./public/css/style.scss'), themeHash: get_file_timestamp('./public/css/themes/' + settings.shared_pages.theme.toLowerCase() + '/bootstrap.min.css'), page_title_prefix: settings.coin.name + ' Masternodes' });
+      res.render('masternodes', {active: 'masternodes', last_updated: null, showSync: db.check_show_sync_message(), styleHash: get_file_timestamp('./public/css/style.scss'), themeHash: get_file_timestamp('./public/css/themes/' + settings.shared_pages.theme.toLowerCase() + '/bootstrap.min.css'), page_title_prefix: settings.coin.name + ' Smartnodesnodes' });
     }
   } else {
     // masternode page is not enabled so default to the index page

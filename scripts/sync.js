@@ -517,7 +517,7 @@ if (lib.is_locked([database]) == false) {
               });
             }, function() {
               db.remove_old_masternodes(function(cb) {
-                db.update_last_updated_stats(settings.coin.name, { masternodes_last_updated: Math.floor(new Date() / 1000) }, function(cb) {
+                db.update_last_updated_stats(settings.coin.name, { masternodes_last_updated: Math.floor(Date.now() / 1000) }, function(cb) {
                   console.log('Masternode sync complete');
                   exit(0);
                 });

@@ -85,8 +85,8 @@
   "a_qr": "QR Code",
 
   // masternode view
-  "mn_title": "{1} Masternodes",
-  "mn_description": "A listing of all masternodes known to be active on the {1} network",
+  "mn_title": "{1} Smartnodes",
+  "mn_description": "A listing of all smartnodes known to be active on the {1} network",
   "mn_masternode_list": "Masternode List",
 
   // movement view
