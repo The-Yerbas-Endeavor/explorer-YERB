@@ -269,7 +269,7 @@ git clone https://github.com/The-Yerbas-Endeavor/explorer-YERB.git
 ##### Install Node Modules
 
 ```
-cd explorer && npm install --production
+cd explorer-YERB && npm install --production
 ```
 
 ##### Configure Explorer Settings
