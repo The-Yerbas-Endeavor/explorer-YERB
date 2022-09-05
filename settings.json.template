@@ -10,9 +10,9 @@
   // dbsettings: a collection of settings that allow the explorer to connect to MongoDB
   "dbsettings": {
     // user: The MongoDB username
-    "user": "eiquidus",
+    "user": "yerbexplor",
     // password: The MongoDB password
-    "password": "Nd^p2d77ceBX!L",
+    "password": "h413jjfD$FF/k4",
     // database: The MongoDB database name (default: explorerdb)
     "database": "explorerdb",
     // address: The MongoDB hostname. This should always be 'localhost' if connecting to a local instance, otherwise specify the ip address of a remote instance
@@ -26,11 +26,11 @@
     // host: The hostname or ip address of the wallet to connect to (default: localhost)
     "host": "localhost",
     // port: The port # that the wallet is configured to listen for RPC requests on (default: 51573 for Exor wallet)
-    "port": 51573,
+    "port": 15419,
     // username: The wallet RPC username
-    "username": "exorrpc",
+    "username": "yerbrpc",
     // password: The wallet RPC password
-    "password": "sSTLyCkrD94Y8&9mr^m6W^Mk367Vr!!K"
+    "password": "dfY4dF$/fd4F7"
   },
 
   // webserver: a collection of settings that pertain to the node.js express web framework (read more: https://www.npmjs.com/package/express)
@@ -553,7 +553,7 @@
       //                      NOTE: Page length options will be limited based on the max_items_per_query for the /ext/getaddresstxs api
       "page_length_options": [ 10, 25, 50, 75, 100, 250, 500, 1000 ],
       // items_per_page: The default amount of items/records to display in the table at any given time
-      "items_per_page": 50
+      "items_per_page": 10
     }
   },
 
