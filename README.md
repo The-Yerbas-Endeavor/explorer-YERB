@@ -263,13 +263,13 @@ db.createUser( { user: "eiquidus", pwd: "Nd^p2d77ceBX!L", roles: [ "readWrite" ]
 ##### Download Source Code
 
 ```
-git clone https://github.com/The-Yerbas-Endeavor/explorer-YERB.git
+git clone https://github.com/team-exor/eiquidus explorer
 ```
 
 ##### Install Node Modules
 
 ```
-cd explorer-YERB && npm install --production
+cd explorer && npm install --production
 ```
 
 ##### Configure Explorer Settings
