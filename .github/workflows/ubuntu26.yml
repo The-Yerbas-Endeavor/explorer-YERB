@@ -1,0 +1,59 @@
+name: Ubuntu 26 Compatibility
+
+on:
+  push:
+    branches: [ubuntu-26]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-compatibility:
+    name: Node 22 compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          else
+            npm install --package-lock=true
+          fi
+
+      - name: Run tests
+        run: npm test
+
+      - name: Verify application startup files
+        run: |
+          node --check ./bin/cluster
+          node --check ./bin/instance
+          node --check ./app.js
+          node --check ./scripts/prestart.js
+
+      - name: Validate installer shell syntax
+        run: bash -n ./install-ubuntu26.sh
+
+      - name: Upload generated lockfile
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: ubuntu26-package-lock
+          path: package-lock.json
+          if-no-files-found: ignore
