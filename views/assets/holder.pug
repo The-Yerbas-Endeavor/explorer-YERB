@@ -12,18 +12,25 @@ block content
           span.text-muted Address: 
           a(href='/address/' + encodeURIComponent(address))= address
         .table-responsive
-          table.table.table-striped.table-hover
+          table.table.table-striped.table-hover.align-middle
             thead
               tr
                 th Asset
+                th Type
                 th.text-end Balance
+                th.text-center Metadata
             tbody
-              - const entries = Object.entries(balances).sort((a, b) => a[0].localeCompare(b[0], undefined, {numeric: true}));
-              each item in entries
+              each item in balances
                 tr
                   td
-                    a(href='/asset/' + encodeURIComponent(item[0]))= item[0]
-                  td.text-end= Number(item[1]).toLocaleString()
-              if entries.length === 0
+                    a.fw-bold(href='/asset/' + encodeURIComponent(item.asset))= item.asset
+                  td= item.metadata && item.metadata.type ? item.metadata.type : '—'
+                  td.text-end= item.balance
+                  td.text-center
+                    if item.metadata && item.metadata.has_ipfs
+                      a(href=item.metadata.ipfs_url, target='_blank', rel='noopener noreferrer') IPFS
+                    else
+                      span.text-muted —
+              if !balances || balances.length === 0
                 tr
-                  td.text-center.text-muted(colspan='2') This address has no asset balances.
+                  td.text-center.text-muted(colspan='4') This address has no indexed asset balances.
