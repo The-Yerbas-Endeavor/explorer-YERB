@@ -1,0 +1,49 @@
+extends ../layout
+
+block content
+  .col-lg-12
+    if error
+      .alert.alert-warning= error
+    if asset
+      .d-flex.justify-content-between.align-items-center.mb-3
+        div
+          h3.mb-1= asset.name + ' Holders'
+          .text-muted= Number(asset.holder_count || 0).toLocaleString() + ' addresses holding ' + (asset.total_holder_balance || '0') + ' units'
+        a.btn.btn-outline-secondary(href='/asset/' + encodeURIComponent(asset.name)) Back to asset
+
+      .card.card-default
+        .card-body
+          .table-responsive
+            table.table.table-striped.table-hover
+              thead
+                tr
+                  th Rank
+                  th Address
+                  th.text-end Balance
+                  th.text-end Ownership
+              tbody
+                each holder, index in asset.holder_entries
+                  - const percentage = holder.percentage == null && Number(asset.total_holder_balance || 0) > 0 ? (Number(holder.balance) / Number(asset.total_holder_balance)) * 100 : Number(holder.percentage || 0)
+                  tr
+                    td= ((asset.holder_page - 1) * asset.holder_per_page) + index + 1
+                    td
+                      a(href='/address/' + encodeURIComponent(holder.address))= holder.address
+                      a.ms-2.small(href='/address/' + encodeURIComponent(holder.address) + '/assets') portfolio
+                    td.text-end= holder.balance
+                    td.text-end= percentage.toFixed(percentage >= 1 ? 2 : 4) + '%'
+                if !asset.holder_entries || asset.holder_entries.length === 0
+                  tr
+                    td.text-center.text-muted(colspan='4') No holder records are indexed.
+
+          if asset.holder_pages > 1
+            nav.mt-3(aria-label='Asset holder pages')
+              ul.pagination.justify-content-center.mb-0
+                li.page-item(class=asset.holder_page <= 1 ? 'disabled' : '')
+                  a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '/holders?page=' + (asset.holder_page - 1) + '&per_page=' + asset.holder_per_page) Previous
+                - const firstPage = Math.max(1, asset.holder_page - 2)
+                - const lastPage = Math.min(asset.holder_pages, asset.holder_page + 2)
+                - for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
+                  li.page-item(class=pageNumber === asset.holder_page ? 'active' : '')
+                    a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '/holders?page=' + pageNumber + '&per_page=' + asset.holder_per_page)= pageNumber
+                li.page-item(class=asset.holder_page >= asset.holder_pages ? 'disabled' : '')
+                  a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '/holders?page=' + (asset.holder_page + 1) + '&per_page=' + asset.holder_per_page) Next
