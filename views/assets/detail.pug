@@ -26,7 +26,7 @@ block content
             .col-md-3.mb-3
               .text-muted IPFS
               if asset.ipfs_hash
-                code= asset.ipfs_hash
+                a(href=asset.ipfs_url target='_blank' rel='noopener noreferrer')= asset.ipfs_hash
               else
                 .fs-5 No
           if asset.issuer.length
@@ -36,8 +36,9 @@ block content
               div
                 a(href='/address/' + encodeURIComponent(issuer))= issuer
       .card.card-default
-        .card-header
+        .card-header.d-flex.justify-content-between.align-items-center
           strong Asset Holders
+          span.text-muted= asset.holder_count.toLocaleString() + ' total'
         .card-body
           .table-responsive
             table.table.table-striped.table-hover
@@ -45,14 +46,27 @@ block content
                 tr
                   th Address
                   th.text-end Balance
+                  th.text-end Ownership
               tbody
-                - const holderEntries = Object.entries(asset.holders).sort((a, b) => Number(b[1]) - Number(a[1]));
-                each holder in holderEntries
+                each holder in asset.holder_entries
                   tr
                     td
-                      a(href='/address/' + encodeURIComponent(holder[0]))= holder[0]
-                      a.ms-2.small(href='/address/' + encodeURIComponent(holder[0]) + '/assets') portfolio
-                    td.text-end= Number(holder[1]).toLocaleString()
-                if holderEntries.length === 0
+                      a(href='/address/' + encodeURIComponent(holder.address))= holder.address
+                      a.ms-2.small(href='/address/' + encodeURIComponent(holder.address) + '/assets') portfolio
+                    td.text-end= Number(holder.balance).toLocaleString()
+                    td.text-end= holder.percentage.toFixed(holder.percentage >= 1 ? 2 : 4) + '%'
+                if asset.holder_entries.length === 0
                   tr
-                    td.text-center.text-muted(colspan='2') No holder records returned by the node.
+                    td.text-center.text-muted(colspan='3') No holder records returned by the node.
+          if asset.holder_pages > 1
+            nav.mt-3(aria-label='Asset holder pages')
+              ul.pagination.justify-content-center.mb-0
+                li.page-item(class=asset.holder_page <= 1 ? 'disabled' : '')
+                  a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '?page=' + (asset.holder_page - 1) + '&per_page=' + asset.holder_per_page) Previous
+                - const firstPage = Math.max(1, asset.holder_page - 2)
+                - const lastPage = Math.min(asset.holder_pages, asset.holder_page + 2)
+                - for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
+                  li.page-item(class=pageNumber === asset.holder_page ? 'active' : '')
+                    a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '?page=' + pageNumber + '&per_page=' + asset.holder_per_page)= pageNumber
+                li.page-item(class=asset.holder_page >= asset.holder_pages ? 'disabled' : '')
+                  a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '?page=' + (asset.holder_page + 1) + '&per_page=' + asset.holder_per_page) Next
