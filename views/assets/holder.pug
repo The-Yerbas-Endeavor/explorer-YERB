@@ -1,0 +1,29 @@
+extends ../layout
+
+block content
+  .col-lg-12
+    if error
+      .alert.alert-warning= error
+    .card.card-default
+      .card-header
+        strong Asset Portfolio
+      .card-body
+        p.mb-3
+          span.text-muted Address: 
+          a(href='/address/' + encodeURIComponent(address))= address
+        .table-responsive
+          table.table.table-striped.table-hover
+            thead
+              tr
+                th Asset
+                th.text-end Balance
+            tbody
+              - const entries = Object.entries(balances).sort((a, b) => a[0].localeCompare(b[0], undefined, {numeric: true}));
+              each item in entries
+                tr
+                  td
+                    a(href='/asset/' + encodeURIComponent(item[0]))= item[0]
+                  td.text-end= Number(item[1]).toLocaleString()
+              if entries.length === 0
+                tr
+                  td.text-center.text-muted(colspan='2') This address has no asset balances.
