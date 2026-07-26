@@ -1,0 +1,61 @@
+extends ../layout
+
+block content
+  .col-lg-12
+    .card.card-default
+      .card-header.d-flex.justify-content-between.align-items-center
+        strong Yerbas Assets
+        span.badge.bg-secondary #{total.toLocaleString()} assets
+      .card-body
+        if error
+          .alert.alert-warning= error
+        form.row.g-2.mb-3(method='get', action='/assets')
+          .col-md-7
+            input.form-control(type='search', name='q', value=query, placeholder='Search asset names')
+          .col-md-3
+            select.form-select(name='type')
+              option(value='') All asset types
+              each label in ['Root', 'Sub-asset', 'Unique', 'Owner', 'Restricted', 'Qualifier']
+                option(value=label.toLowerCase(), selected=type === label.toLowerCase())= label
+          .col-md-2.d-grid
+            button.btn.btn-success(type='submit') Search
+        .table-responsive
+          table.table.table-striped.table-hover.align-middle
+            thead
+              tr
+                th Asset
+                th Type
+                th.text-end Supply
+                th.text-center Units
+                th.text-center IPFS
+                th.text-center Reissuable
+            tbody
+              each asset in assets
+                tr
+                  td
+                    a.fw-bold(href='/asset/' + encodeURIComponent(asset.name))= asset.name
+                  td= asset.type
+                  td.text-end= Number(asset.amount).toLocaleString()
+                  td.text-center= asset.units
+                  td.text-center
+                    if asset.has_ipfs
+                      span.badge.bg-success Yes
+                    else
+                      span.text-muted —
+                  td.text-center
+                    if asset.reissuable
+                      span.badge.bg-info Yes
+                    else
+                      span.text-muted No
+              if assets.length === 0
+                tr
+                  td.text-center.text-muted(colspan='6') No assets matched this search.
+        if pages > 1
+          nav(aria-label='Asset pages')
+            ul.pagination.justify-content-center
+              li.page-item(class=page <= 1 ? 'disabled' : '')
+                a.page-link(href='/assets?page=' + (page - 1) + '&q=' + encodeURIComponent(query) + '&type=' + encodeURIComponent(type)) Previous
+              li.page-item.disabled
+                span.page-link Page #{page} of #{pages}
+              li.page-item(class=page >= pages ? 'disabled' : '')
+                a.page-link(href='/assets?page=' + (page + 1) + '&q=' + encodeURIComponent(query) + '&type=' + encodeURIComponent(type)) Next
