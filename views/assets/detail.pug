@@ -1,0 +1,58 @@
+extends ../layout
+
+block content
+  .col-lg-12
+    if error
+      .alert.alert-warning= error
+    if asset
+      .card.card-default.mb-3
+        .card-header.d-flex.justify-content-between.align-items-center
+          strong= asset.name
+          span.badge.bg-primary= asset.type
+        .card-body
+          .row
+            .col-md-3.mb-3
+              .text-muted Supply
+              .fs-5= Number(asset.amount).toLocaleString()
+            .col-md-2.mb-3
+              .text-muted Units
+              .fs-5= asset.units
+            .col-md-2.mb-3
+              .text-muted Holders
+              .fs-5= asset.holder_count.toLocaleString()
+            .col-md-2.mb-3
+              .text-muted Reissuable
+              .fs-5= asset.reissuable ? 'Yes' : 'No'
+            .col-md-3.mb-3
+              .text-muted IPFS
+              if asset.ipfs_hash
+                code= asset.ipfs_hash
+              else
+                .fs-5 No
+          if asset.issuer.length
+            hr
+            .text-muted Owner token address
+            each issuer in asset.issuer
+              div
+                a(href='/address/' + encodeURIComponent(issuer))= issuer
+      .card.card-default
+        .card-header
+          strong Asset Holders
+        .card-body
+          .table-responsive
+            table.table.table-striped.table-hover
+              thead
+                tr
+                  th Address
+                  th.text-end Balance
+              tbody
+                - const holderEntries = Object.entries(asset.holders).sort((a, b) => Number(b[1]) - Number(a[1]));
+                each holder in holderEntries
+                  tr
+                    td
+                      a(href='/address/' + encodeURIComponent(holder[0]))= holder[0]
+                      a.ms-2.small(href='/address/' + encodeURIComponent(holder[0]) + '/assets') portfolio
+                    td.text-end= Number(holder[1]).toLocaleString()
+                if holderEntries.length === 0
+                  tr
+                    td.text-center.text-muted(colspan='2') No holder records returned by the node.
