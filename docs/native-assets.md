@@ -1,38 +1,36 @@
 # Native Yerbas Asset Explorer
 
-This branch begins the native port of `Yerbas-Assets-Viewer` into `explorer-YERB`.
+This branch integrates Yerbas Assets directly into `explorer-YERB` with MongoDB-backed asset and holder indexing plus RPC fallback.
 
-## Included in this milestone
+## Included
 
-- `/assets` searchable, filtered, paginated asset directory
-- `/asset/:name` metadata, owner address, and holder balances
-- `/address/:address/assets` address asset portfolio
+- `/assets` searchable, filtered, sortable, paginated asset directory
+- `/asset/:name` metadata, owner address, holder balances, and activity preview
+- `/asset/:name/holders` dedicated holder page
+- `/address/:address/assets` indexed address asset portfolio
 - `/ext/assets` paginated JSON API
-- `/ext/asset/:name` exact asset JSON API
-- `/ext/address/:address/assets` address portfolio JSON API
-- Explorer-native Pug templates and Bootstrap styling
-- Existing Yerbas RPC configuration through `lib/node.js`
-- No PHP, PHP-FPM, or SQLite dependency
+- `/ext/assets/status` indexer health and counts
+- `/ext/assets/search?q=...` autocomplete/search API
+- `/ext/asset/:name` exact asset API
+- `/ext/asset/:name/holders` paginated holder API
+- `/ext/asset/:name/activity` activity API scaffold
+- `/ext/address/:address/assets` address portfolio API
+- MongoDB collections: `assets`, `assetholders`, `assetactivities`, `assetsyncstates`
+- Exact string storage and MongoDB Decimal128 sorting for holder balances
+- RPC caches and controlled fallback when the Mongo index is empty
+- PM2 web and five-minute asset-index schedules
 
 ## Enable the module
 
-From the explorer directory, run once:
+Run once from the explorer directory:
 
 ```bash
-node scripts/install_native_assets.js
+npm run assets-install
 ```
 
-The installer adds the asset router to `app.js` and an **Assets** navigation entry to `views/layout.pug`. It is idempotent and may be run again safely.
-
-Review the generated changes before committing:
-
-```bash
-git diff -- app.js views/layout.pug
-```
+The installer mounts the asset router in `app.js` and adds the Assets navigation entry to `views/layout.pug`. It is idempotent.
 
 ## Yerbas Core requirements
-
-The connected Yerbas Core node must have the following indexes enabled:
 
 ```ini
 server=1
@@ -43,23 +41,63 @@ txindex=1
 
 Restart and reindex Yerbas Core if these indexes were not previously enabled.
 
-## Validate
+## Initial index
+
+Confirm `settings.json` points at the intended MongoDB database before running this command.
+
+```bash
+npm run reindex-assets
+```
+
+Normal incremental refresh:
+
+```bash
+npm run sync-assets
+```
+
+Refresh one asset:
+
+```bash
+npm run sync-asset -- ASSET_NAME
+```
+
+Tune RPC concurrency when needed:
+
+```bash
+ASSET_SYNC_CONCURRENCY=4 npm run sync-assets
+```
+
+## PM2
+
+```bash
+pm2 start ecosystem.assets.config.js
+pm2 save
+pm2 status
+```
+
+The processes are:
+
+- `explorer-assets-test`: persistent explorer web process
+- `explorer-assets-indexer`: asset refresh every five minutes, no automatic restart loop
+
+## Validation
 
 ```bash
 npm test
-npm start
-```
-
-Then test:
-
-```bash
-curl -s http://127.0.0.1:3001/ext/assets?per_page=5
-curl -s http://127.0.0.1:3001/ext/asset/ASSET_NAME
-curl -s http://127.0.0.1:3001/ext/address/YERB_ADDRESS/assets
+curl -fsS http://127.0.0.1:3002/assets >/dev/null
+curl -fsS http://127.0.0.1:3002/ext/assets/status
+curl -fsS 'http://127.0.0.1:3002/ext/assets?per_page=5'
+curl -fsS 'http://127.0.0.1:3002/ext/assets/search?q=YERB'
+curl -fsS http://127.0.0.1:3002/ext/asset/ASSET_NAME
+curl -fsS http://127.0.0.1:3002/ext/address/YERB_ADDRESS/assets
 ```
 
 Use the port configured in `settings.json`.
 
-## Next milestone
+## Backup safety
 
-The next phase replaces full RPC scans with MongoDB-backed asset, holder, activity, and synchronization collections. It will add incremental indexing, issue/transfer/reissue activity, live polling, statistics, and unified explorer search.
+The asset collections live in the explorer MongoDB database and are included by the existing `mongodump --archive --gzip` backup. Never run the restore or database-delete scripts against production unless a production restore is intentional.
+
+## Activity indexing
+
+The activity model and API are present. Populating historical issuance, reissuance, transfer, burn, restricted-asset, qualifier, and metadata-change rows requires a Yerbas-specific transaction-output parser. Until that parser is enabled, the activity endpoint returns an empty paginated result rather than querying expensive transaction history on every request.
