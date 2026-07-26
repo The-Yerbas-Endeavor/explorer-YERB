@@ -9,14 +9,42 @@ block content
       .card-body
         if error
           .alert.alert-warning= error
+        if syncStatus
+          .row.g-2.mb-3
+            .col-md-3
+              .border.rounded.p-2
+                small.text-muted Sync status
+                div.fw-bold= syncStatus.status || 'unknown'
+            .col-md-3
+              .border.rounded.p-2
+                small.text-muted Indexed assets
+                div.fw-bold= Number(syncStatus.asset_count || total || 0).toLocaleString()
+            .col-md-3
+              .border.rounded.p-2
+                small.text-muted Indexed holders
+                div.fw-bold= Number(syncStatus.holder_count || 0).toLocaleString()
+            .col-md-3
+              .border.rounded.p-2
+                small.text-muted Last successful sync
+                div.fw-bold= syncStatus.last_success_at ? new Date(syncStatus.last_success_at).toLocaleString() : 'Not yet indexed'
         form.row.g-2.mb-3(method='get', action='/assets')
-          .col-md-7
+          .col-md-4
             input.form-control(type='search', name='q', value=query, placeholder='Search asset names')
-          .col-md-3
+          .col-md-2
             select.form-select(name='type')
               option(value='') All asset types
               each label in ['Root', 'Sub-asset', 'Unique', 'Owner', 'Restricted', 'Qualifier']
                 option(value=label.toLowerCase(), selected=type === label.toLowerCase())= label
+          .col-md-2
+            select.form-select(name='sort')
+              option(value='name', selected=sort === 'name') Name
+              option(value='holders', selected=sort === 'holders') Holder count
+              option(value='updated', selected=sort === 'updated') Recently indexed
+          .col-md-2
+            select.form-select(name='has_metadata')
+              option(value='') Any metadata
+              option(value='true', selected=has_metadata === 'true') Has metadata
+              option(value='false', selected=has_metadata === 'false') No metadata
           .col-md-2.d-grid
             button.btn.btn-success(type='submit') Search
         .table-responsive
@@ -26,8 +54,9 @@ block content
                 th Asset
                 th Type
                 th.text-end Supply
+                th.text-end Holders
                 th.text-center Units
-                th.text-center IPFS
+                th.text-center Metadata
                 th.text-center Reissuable
             tbody
               each asset in assets
@@ -35,11 +64,12 @@ block content
                   td
                     a.fw-bold(href='/asset/' + encodeURIComponent(asset.name))= asset.name
                   td= asset.type
-                  td.text-end= Number(asset.amount).toLocaleString()
+                  td.text-end= asset.amount
+                  td.text-end= Number(asset.holder_count || 0).toLocaleString()
                   td.text-center= asset.units
                   td.text-center
                     if asset.has_ipfs
-                      span.badge.bg-success Yes
+                      a.badge.bg-success(href=asset.ipfs_url, target='_blank', rel='noopener noreferrer') IPFS
                     else
                       span.text-muted —
                   td.text-center
@@ -49,13 +79,14 @@ block content
                       span.text-muted No
               if assets.length === 0
                 tr
-                  td.text-center.text-muted(colspan='6') No assets matched this search.
+                  td.text-center.text-muted(colspan='7') No assets matched this search.
         if pages > 1
+          - const suffix = '&q=' + encodeURIComponent(query || '') + '&type=' + encodeURIComponent(type || '') + '&sort=' + encodeURIComponent(sort || 'name')
           nav(aria-label='Asset pages')
             ul.pagination.justify-content-center
               li.page-item(class=page <= 1 ? 'disabled' : '')
-                a.page-link(href='/assets?page=' + (page - 1) + '&q=' + encodeURIComponent(query) + '&type=' + encodeURIComponent(type)) Previous
+                a.page-link(href='/assets?page=' + (page - 1) + suffix) Previous
               li.page-item.disabled
                 span.page-link Page #{page} of #{pages}
               li.page-item(class=page >= pages ? 'disabled' : '')
-                a.page-link(href='/assets?page=' + (page + 1) + '&q=' + encodeURIComponent(query) + '&type=' + encodeURIComponent(type)) Next
+                a.page-link(href='/assets?page=' + (page + 1) + suffix) Next
