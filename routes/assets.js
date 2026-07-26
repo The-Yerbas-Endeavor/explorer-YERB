@@ -22,6 +22,13 @@ function sendError(res, err, status) {
   res.status(status || 500).json({error: message});
 }
 
+function holderOptions(req) {
+  return {
+    page: req.query.page,
+    perPage: req.query.per_page
+  };
+}
+
 router.get('/assets', async (req, res) => {
   try {
     const data = await assets.listAssets({
@@ -41,14 +48,21 @@ router.get('/assets', async (req, res) => {
 
 router.get('/asset/:name', async (req, res) => {
   try {
-    const asset = await assets.getAsset(req.params.name, {
-      page: req.query.page,
-      perPage: req.query.per_page
-    });
+    const asset = await assets.getAsset(req.params.name, holderOptions(req));
     if (!asset) return res.status(404).render('assets/detail', renderOptions('assets', 'Asset not found', {asset: null, error: 'Asset not found.'}));
     res.render('assets/detail', renderOptions('assets', asset.name + ' Asset', {asset}));
   } catch (err) {
     res.status(503).render('assets/detail', renderOptions('assets', 'Asset unavailable', {asset: null, error: 'Unable to retrieve this asset from Yerbas Core.'}));
+  }
+});
+
+router.get('/asset/:name/holders', async (req, res) => {
+  try {
+    const asset = await assets.getAsset(req.params.name, holderOptions(req));
+    if (!asset) return res.status(404).render('assets/holders', renderOptions('assets', 'Asset not found', {asset: null, error: 'Asset not found.'}));
+    res.render('assets/holders', renderOptions('assets', asset.name + ' Holders', {asset}));
+  } catch (err) {
+    res.status(503).render('assets/holders', renderOptions('assets', 'Asset holders unavailable', {asset: null, error: 'Unable to retrieve holder data from Yerbas Core.'}));
   }
 });
 
@@ -69,12 +83,25 @@ router.get('/ext/assets', async (req, res) => {
 
 router.get('/ext/asset/:name', async (req, res) => {
   try {
-    const asset = await assets.getAsset(req.params.name, {
-      page: req.query.page,
-      perPage: req.query.per_page
-    });
+    const asset = await assets.getAsset(req.params.name, holderOptions(req));
     if (!asset) return res.status(404).json({error: 'Asset not found.'});
     res.json(asset);
+  } catch (err) { sendError(res, err, 503); }
+});
+
+router.get('/ext/asset/:name/holders', async (req, res) => {
+  try {
+    const asset = await assets.getAsset(req.params.name, holderOptions(req));
+    if (!asset) return res.status(404).json({error: 'Asset not found.'});
+    res.json({
+      asset: asset.name,
+      total: asset.holder_count,
+      page: asset.holder_page,
+      pages: asset.holder_pages,
+      perPage: asset.holder_per_page,
+      totalBalance: asset.total_holder_balance,
+      holders: asset.holder_entries
+    });
   } catch (err) { sendError(res, err, 503); }
 });
 
