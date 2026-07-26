@@ -41,7 +41,10 @@ router.get('/assets', async (req, res) => {
 
 router.get('/asset/:name', async (req, res) => {
   try {
-    const asset = await assets.getAsset(req.params.name);
+    const asset = await assets.getAsset(req.params.name, {
+      page: req.query.page,
+      perPage: req.query.per_page
+    });
     if (!asset) return res.status(404).render('assets/detail', renderOptions('assets', 'Asset not found', {asset: null, error: 'Asset not found.'}));
     res.render('assets/detail', renderOptions('assets', asset.name + ' Asset', {asset}));
   } catch (err) {
@@ -66,7 +69,10 @@ router.get('/ext/assets', async (req, res) => {
 
 router.get('/ext/asset/:name', async (req, res) => {
   try {
-    const asset = await assets.getAsset(req.params.name);
+    const asset = await assets.getAsset(req.params.name, {
+      page: req.query.page,
+      perPage: req.query.per_page
+    });
     if (!asset) return res.status(404).json({error: 'Asset not found.'});
     res.json(asset);
   } catch (err) { sendError(res, err, 503); }
