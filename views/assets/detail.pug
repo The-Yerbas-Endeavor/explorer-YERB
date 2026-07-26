@@ -37,19 +37,23 @@ block content
                 a(href='/address/' + encodeURIComponent(issuer))= issuer
       .card.card-default
         .card-header.d-flex.justify-content-between.align-items-center
-          strong Asset Holders
-          span.text-muted= asset.holder_count.toLocaleString() + ' total'
+          div
+            strong Top Asset Holders
+            span.text-muted.ms-2= asset.holder_count.toLocaleString() + ' total'
+          a.btn.btn-sm.btn-outline-primary(href='/asset/' + encodeURIComponent(asset.name) + '/holders') View all holders
         .card-body
           .table-responsive
             table.table.table-striped.table-hover
               thead
                 tr
+                  th Rank
                   th Address
                   th.text-end Balance
                   th.text-end Ownership
               tbody
-                each holder in asset.holder_entries
+                each holder, index in asset.holder_entries
                   tr
+                    td= index + 1
                     td
                       a(href='/address/' + encodeURIComponent(holder.address))= holder.address
                       a.ms-2.small(href='/address/' + encodeURIComponent(holder.address) + '/assets') portfolio
@@ -57,16 +61,4 @@ block content
                     td.text-end= holder.percentage.toFixed(holder.percentage >= 1 ? 2 : 4) + '%'
                 if asset.holder_entries.length === 0
                   tr
-                    td.text-center.text-muted(colspan='3') No holder records returned by the node.
-          if asset.holder_pages > 1
-            nav.mt-3(aria-label='Asset holder pages')
-              ul.pagination.justify-content-center.mb-0
-                li.page-item(class=asset.holder_page <= 1 ? 'disabled' : '')
-                  a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '?page=' + (asset.holder_page - 1) + '&per_page=' + asset.holder_per_page) Previous
-                - const firstPage = Math.max(1, asset.holder_page - 2)
-                - const lastPage = Math.min(asset.holder_pages, asset.holder_page + 2)
-                - for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber++)
-                  li.page-item(class=pageNumber === asset.holder_page ? 'active' : '')
-                    a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '?page=' + pageNumber + '&per_page=' + asset.holder_per_page)= pageNumber
-                li.page-item(class=asset.holder_page >= asset.holder_pages ? 'disabled' : '')
-                  a.page-link(href='/asset/' + encodeURIComponent(asset.name) + '?page=' + (asset.holder_page + 1) + '&per_page=' + asset.holder_per_page) Next
+                    td.text-center.text-muted(colspan='4') No holder records returned by the node.
