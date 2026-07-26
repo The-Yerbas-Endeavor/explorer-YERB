@@ -29,6 +29,30 @@ block content
                 a(href=asset.ipfs_url target='_blank' rel='noopener noreferrer')= asset.ipfs_hash
               else
                 .fs-5 No
+          if asset.ipfs_hash
+            hr
+            .row
+              .col-lg-5.col-md-6.mb-3.mb-md-0
+                .text-muted.mb-2 IPFS Image Preview
+                .border.rounded.bg-light.text-center.p-2(style='min-height: 220px;')
+                  img.img-fluid.rounded(
+                    src=asset.ipfs_url
+                    alt=asset.name + ' IPFS image preview'
+                    loading='lazy'
+                    referrerpolicy='no-referrer'
+                    style='max-height: 420px; object-fit: contain;'
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                  )
+                  .text-muted.py-5(style='display:none;')
+                    span.fas.fa-image.fa-2x.d-block.mb-2
+                    | This IPFS content is not a browser-supported image.
+              .col-lg-7.col-md-6
+                .text-muted.mb-2 IPFS Content
+                p.mb-2
+                  a.btn.btn-sm.btn-outline-primary(href=asset.ipfs_url target='_blank' rel='noopener noreferrer')
+                    span.fas.fa-external-link-alt.me-1
+                    | Open IPFS content
+                code.text-break= asset.ipfs_hash
           if asset.issuer && asset.issuer.length
             hr
             .text-muted Owner token address
