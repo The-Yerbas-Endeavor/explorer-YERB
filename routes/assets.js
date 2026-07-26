@@ -48,7 +48,7 @@ router.get('/assets', async (req, res) => {
 
 router.get('/asset/:name', async (req, res) => {
   try {
-    const asset = await assets.getAsset(req.params.name, holderOptions(req));
+    const asset = await assets.getAsset(req.params.name, {page: 1, perPage: 10});
     if (!asset) return res.status(404).render('assets/detail', renderOptions('assets', 'Asset not found', {asset: null, error: 'Asset not found.'}));
     res.render('assets/detail', renderOptions('assets', asset.name + ' Asset', {asset}));
   } catch (err) {
