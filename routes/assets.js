@@ -38,15 +38,30 @@ function listOptions(req) {
   };
 }
 
+router.post('/search', async (req, res, next) => {
+  const query = String(req.body && req.body.search || '').trim();
+  if (!query || query.length === 64 || /^\d+$/.test(query)) return next();
+  try {
+    const matches = await assets.searchAssets(query, 10);
+    const exact = matches.find((asset) => asset.name && asset.name.toUpperCase() === query.toUpperCase());
+    if (exact) return res.redirect('/asset/' + encodeURIComponent(exact.name));
+    return next();
+  } catch (err) {
+    return next();
+  }
+});
+
 router.get('/assets', async (req, res) => {
   try {
     const data = await assets.listAssets(listOptions(req));
+    data.has_metadata = req.query.has_metadata || '';
+    data.reissuable = req.query.reissuable || '';
     data.syncStatus = await assets.getStatus();
     res.render('assets/index', renderOptions('assets', settings.coin.name + ' Assets', data));
   } catch (err) {
     res.status(503).render('assets/index', renderOptions('assets', settings.coin.name + ' Assets', {
       assets: [], total: 0, page: 1, pages: 1, perPage: 25,
-      query: req.query.q || '', type: req.query.type || '', sort: req.query.sort || 'name',
+      query: req.query.q || '', type: req.query.type || '', sort: req.query.sort || 'name', has_metadata: '', reissuable: '',
       syncStatus: {status: 'error', last_error: err.message},
       error: 'Asset information is temporarily unavailable. The standard block explorer remains online.'
     }));
