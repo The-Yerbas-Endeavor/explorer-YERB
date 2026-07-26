@@ -25,10 +25,10 @@
   "wallet": {
     // host: The hostname or ip address of the wallet to connect to (default: localhost)
     "host": "localhost",
-    // port: The port # that the wallet is configured to listen for RPC requests on (default: 51573 for Exor wallet)
+    // port: The port # that the wallet is configured to listen for RPC requests on (default: 51573 for Yerb wallet)
     "port": 51573,
     // username: The wallet RPC username
-    "username": "exorrpc",
+    "username": "yerbrpc",
     // password: The wallet RPC password
     "password": "sSTLyCkrD94Y8&9mr^m6W^Mk367Vr!!K"
   },
@@ -73,9 +73,9 @@
   "coin": {
     // name: Name of the cryptocurrency coin being explored. This value is displayed in the page header when the "shared_pages.page_header.home_link" setting is set to "coin".
     //       NOTE: This value acts as a unique identifier for data stored in mongo and therefore cannot be changed without re-syncing all existing data.
-    "name": "Exor",
+    "name": "Yerb",
     // symbol: The cryptocurrency coin ticker/symbol value. This value is displayed anywhere that coin data is displayed including the index, address, block, movement, reward, richlist/top100 and tx pages
-    "symbol": "EXOR"
+    "symbol": "YERB"
   },
 
   // network_history: a collection of settings that controls saving of extra historical network data during a block sync
@@ -340,10 +340,10 @@
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
           "enabled": true,
-          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Github
+          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Yerb Github
           "tooltip_text": "Github",
           // url: The exact url that the social link should navigate to
-          "url": "https://github.com/team-exor",
+          "url": "https://github.com/The-Yerbas-Endeavor",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "fab fa-github",
           // image_path: The path to an image file that will be displayed for this social link
@@ -354,10 +354,10 @@
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
           "enabled": true,
-          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Twitter
+          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Yerb Twitter
           "tooltip_text": "Twitter",
           // url: The exact url that the social link should navigate to
-          "url": "https://twitter.com/ExorOfficial",
+          "url": "https://x.com/Yerbas_Endeavor",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "fab fa-twitter",
           // image_path: The path to an image file that will be displayed for this social link
@@ -368,7 +368,7 @@
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
           "enabled": true,
-          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Discord
+          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Yerbas Discord
           "tooltip_text": "Discord",
           // url: The exact url that the social link should navigate to
           "url": "https://discord.gg/dSuGm3y",
@@ -382,10 +382,10 @@
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
           "enabled": true,
-          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Telegram
+          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Yerb Telegram
           "tooltip_text": "Telegram",
           // url: The exact url that the social link should navigate to
-          "url": "https://t.me/Exorofficial",
+          "url": "https://discord.gg/XGEp2cKSKF",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "fab fa-telegram",
           // image_path: The path to an image file that will be displayed for this social link
@@ -396,10 +396,10 @@
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
           "enabled": true,
-          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Website
+          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Yerb Website
           "tooltip_text": "Website",
           // url: The exact url that the social link should navigate to
-          "url": "https://exor.io",
+          "url": "https://yerbas.org/",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "",
           // image_path: The path to an image file that will be displayed for this social link
@@ -410,10 +410,10 @@
           // enabled: Enable/disable this particular social link (true/false)
           //          If set to false, the link will be completely inaccessible
           "enabled": true,
-          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Exor Coingecko
+          // tooltip_text: Social link tooltips are always prefixed by the "coin.name" setting followed by the text from this tooltip_text setting. Ex: Yerb Coingecko
           "tooltip_text": "Coingecko",
           // url: The exact url that the social link should navigate to
-          "url": "https://www.coingecko.com/en/coins/exor",
+          "url": "https://coincodex.com/crypto/yerbas/",
           // fontawesome_class: A string of css classes, separated by spaces that can be used to display a fontawesome icon for this social link. See https://fontawesome.com/ for more info
           "fontawesome_class": "",
           // image_path: The path to an image file that will be displayed for this social link
@@ -746,7 +746,7 @@
       //            Use this setting to prevent specific wallet addresses from being displayed in the rich list and wealth distribution chart sections
       //            These wallet addresses will be completely removed from the rich list, but will still be viewable and accessible via the rest of the explorer pages as per normal
       //            Add as many wallet addresses as necessary in the following format: [ "EPUzEEHa45Rsn87WBos6SqkZZ8GrsfgvtZ", "EUzgat1r5AFyoTXK5WgTyM8kABPJY1SX7E" ]
-      "addresses": [ "EXorBurnAddressXXXXXXXXXXXXXW7cDZQ" ],
+      "addresses": [ "YerbBurnAddressXXXXXXXXXXXXXW7cDZQ" ],
       // include_burned_coins_in_distribution: Determine whether to include burned coins in the wealth distribution section or not
       //                                       This setting will need to be changed depending on whether your main coin supply value already has the burned coins removed from its total or not
       //                                       Set this value to false if your blockchain already has a mechanism for removing burned coins from the total supply and the burned coins will not be included in the distribution totals
@@ -1130,9 +1130,9 @@
       //      NOTE: Leave the value blank ( "" ) to prevent hyperlinking the label
       "url": ""
     },
-    // A collection of settings that pertain to the EXorBurnAddressXXXXXXXXXXXXXW7cDZQ wallet address
+    // A collection of settings that pertain to the YerbBurnAddressXXXXXXXXXXXXXW7cDZQ wallet address
     // NOTE: Change this value to the wallet address that you would like to set a custom label on
-    "EXorBurnAddressXXXXXXXXXXXXXW7cDZQ": {
+    "YerbBurnAddressXXXXXXXXXXXXXW7cDZQ": {
       // enabled: Enable/disable this particular wallet address label (true/false)
       //          If set to false, the label will be completely hidden
       "enabled": false,
