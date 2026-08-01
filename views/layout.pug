@@ -646,6 +646,10 @@ html(lang='en')
                 a.nav-link(href='/')
                   span.fas.fa-cubes
                   span.margin-left-5 #{settings.locale.menu_explorer}
+              li#assets.nav-item
+                a.nav-link(href='/assets')
+                  span.fas.fa-layer-group
+                  span.margin-left-5 Assets
               if settings.blockchain_specific.heavycoin.enabled == true && settings.blockchain_specific.heavycoin.reward_page.enabled == true
                 li#reward.nav-item
                   a.nav-link(href='/reward')
