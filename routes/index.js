@@ -4,6 +4,7 @@ var express = require('express'),
     locale = require('../lib/locale'),
     db = require('../lib/database'),
     lib = require('../lib/explorer'),
+    smartnodeHealth = require('../lib/smartnode-health'),
     qr = require('qr-image');
 
 function route_get_block(res, blockhash) {
@@ -409,6 +410,43 @@ router.get('/masternodes', function(req, res) {
     // masternode page is not enabled so default to the index page
     route_get_index(res, null);
   }
+});
+
+router.get('/smartnode-health', function(req, res) {
+  if (
+    !settings.smartnode_health_page ||
+    settings.smartnode_health_page.enabled !== true
+  ) {
+    return res.redirect('/');
+  }
+
+  smartnodeHealth.loadReport(
+    settings.smartnode_health_page,
+    function(err, report) {
+      res.render('smartnode-health', {
+        active: 'smartnode-health',
+        report: report || null,
+        summary:
+          report && report.summary
+            ? report.summary
+            : {},
+        smartnodes:
+          report && Array.isArray(report.smartnodes)
+            ? report.smartnodes
+            : [],
+        error: err ? err.message : null,
+        showSync: db.check_show_sync_message(),
+        styleHash: get_file_timestamp('./public/css/style.scss'),
+        themeHash: get_file_timestamp(
+          './public/css/themes/' +
+          settings.shared_pages.theme.toLowerCase() +
+          '/bootstrap.min.css'
+        ),
+        page_title_prefix:
+          settings.coin.name + ' Smartnode Health'
+      });
+    }
+  );
 });
 
 router.get('/reward', function(req, res) {

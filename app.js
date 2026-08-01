@@ -12,7 +12,8 @@ var express = require('express'),
     db = require('./lib/database'),
     package_metadata = require('./package.json'),
     locale = require('./lib/locale'),
-    request = require('postman-request');
+    request = require('postman-request'),
+    smartnodeHealth = require('./lib/smartnode-health');
 var app = express();
 var apiAccessList = [];
 const { exec } = require('child_process');
@@ -687,6 +688,34 @@ app.use('/ext/getmasternoderewardstotal/:hash/:since', function(req, res) {
   } else {
     res.end('This method is disabled');
   }
+});
+
+app.get('/ext/smartnodehealth', function(req, res) {
+  if (
+    !settings.smartnode_health_page ||
+    settings.smartnode_health_page.enabled !== true ||
+    settings.smartnode_health_page.public_api_enabled !== true
+  ) {
+    return res.status(404).json({
+      error: true,
+      message: 'Smartnode Health API is disabled'
+    });
+  }
+
+  smartnodeHealth.loadReport(
+    settings.smartnode_health_page,
+    function(err, report) {
+      if (err) {
+        return res.status(err.status || 503).json({
+          error: true,
+          message: err.message
+        });
+      }
+
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      res.json(report);
+    }
+  );
 });
 
 app.use('/ext/getnetworkchartdata', function(req, res) {

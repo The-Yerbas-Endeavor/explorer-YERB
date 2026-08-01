@@ -660,6 +660,11 @@ html(lang='en')
                   a.nav-link(href='/masternodes')
                     span.fa.fa-share-alt
                     span.margin-left-5 Smartnodes
+              if settings.smartnode_health_page && settings.smartnode_health_page.enabled
+                li#smartnode-health.nav-item
+                  a.nav-link(href='/smartnode-health')
+                    span.fas.fa-heartbeat
+                    span.margin-left-5 Smartnode Health
               if settings.movement_page.enabled == true
                 li#movement.nav-item
                   a.nav-link(href='/movement')
