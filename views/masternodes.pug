@@ -26,6 +26,16 @@ block content
         var h = h % 24;
         return ('0' + dy).slice(-2) + " day" + (('0' + dy).slice(-2) == 1 ? "" : "s") + " " + ('0' + h).slice(-2) + "h " + ('0' + m).slice(-2) + "m " + ('0' + s).slice(-2) + "s";
     }
+    function firstNumber() {
+      for (var a = 0; a < arguments.length; a++) {
+        if (arguments[a] !== null && typeof arguments[a] !== 'undefined' && arguments[a] !== '') {
+          var value = Number(arguments[a]);
+          if (!isNaN(value))
+            return value;
+        }
+      }
+      return 0;
+    }
     $(document).ready(function() {
       var useNewDashFormat = false;
       var labels = !{JSON.stringify(settings.labels)};
@@ -50,20 +60,65 @@ block content
           url: '/ext/getmasternodelist',
           dataSrc: function(json) {
             for (i = 0; i < json.length; i++) {
-              var addr = json[i]['addr'];
-              json[i]['address'] = "<a href='/address/" + json[i]['address'] + "'>" + json[i]['address'] + "</a>";
+    var addr = json[i]['addr'] || '';
+
+    if (
+      json[i]['ip_address'] == null ||
+      json[i]['ip_address'] == ''
+    ) {
+      json[i]['ip_address'] = addr;
+    }
               json[i]['lastseen'] = '<span' + (#{settings.shared_pages.date_time.enable_alt_timezone_tooltips} == true ? ' data-bs-toggle="tooltip" data-bs-placement="auto" title="' + format_unixtime(json[i]['lastseen'], true) + '"' : '') + '>' + format_unixtime(json[i]['lastseen']) + '</span>';
 
               if (typeof json[i]['lastpaid'] != 'undefined' && json[i]['lastpaid'] != '' && json[i]['lastpaid'] != '0')
                 json[i]['lastpaid'] = '<span' + (#{settings.shared_pages.date_time.enable_alt_timezone_tooltips} == true ? ' data-bs-toggle="tooltip" data-bs-placement="auto" title="' + format_unixtime(json[i]['lastpaid'], true) + '"' : '') + '>' + format_unixtime(json[i]['lastpaid']) + '</span>';
               else
                 json[i]['lastpaid'] = '<em>N/A</em>';
+
               if (json[i]['activetime'])
                 json[i]['activetime'] = secondsToHms(json[i]['activetime']);
               else
                 json[i]['activetime'] = '<em>N/A</em>';
-              json[i]['addr'] = "<a href='/address/" + json[i]['addr'] + "'>" + json[i]['addr'] + ('#{settings.claim_address_page.enabled}' == 'true' && json[i]['claim_name'] != null && json[i]['claim_name'] != '' ? ' <span class="small fw-normal">(' + json[i]['claim_name'] + ')</span>' : '') + "</a>";
 
+              var walletAddress =
+                json[i]['payoutAddress'] ||
+                json[i]['collateralAddress'] ||
+    json[i]['ownerAddress'] ||
+                '';
+
+              if (walletAddress != '') {
+                json[i]['addr'] =
+                  "<a href='/address/" +
+                  walletAddress +
+                  "'>" +
+                  walletAddress +
+                  ('#{settings.claim_address_page.enabled}' == 'true' &&
+                   json[i]['claim_name'] != null &&
+                   json[i]['claim_name'] != ''
+                    ? ' <span class="small fw-normal">(' +
+                      json[i]['claim_name'] +
+                      ')</span>'
+                    : '') +
+                  "</a>";
+              } else {
+                json[i]['addr'] = '<em>N/A</em>';
+              }
+
+              var poseBanHeight = firstNumber(
+                json[i]['pose_ban_height'],
+                json[i]['PoSeBanHeight'],
+                json[i]['poseBanHeight']
+              );
+
+              var poseRevivedHeight = firstNumber(
+                json[i]['pose_revived_height'],
+                json[i]['PoSeRevivedHeight'],
+                json[i]['poseRevivedHeight']
+              );
+
+              json[i]['pose_is_banned'] =
+                poseBanHeight > 0 &&
+                poseRevivedHeight < poseBanHeight;
               if (labels[addr] != null && labels[addr].enabled == true) {
                 if (labels[addr].type)
                   json[i]['addr'] = '<div><label class="badge bg-' + labels[addr].type + '" style="margin-bottom:10px;">' + labels[addr].label + (labels[addr].url ? '<a href="' + labels[addr].url + '" target="_blank", alt="Visit site", title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa fa-question-circle" style="margin-left:5px"></span></a>' : '') + '</label></div>' + json[i]['addr'];
@@ -71,9 +126,9 @@ block content
                   json[i]['addr'] = '<div><label class="badge bg-default" style="margin-bottom:10px;">' + labels[addr].label + (labels[addr].url ? '<a href="' + labels[addr].url + '" target="_blank", alt="Visit site", title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa fa-question-circle" style="margin-left:5px"></span></a>' : '') + '</label></div>' + json[i]['addr'];
               }
             }
- 
+
             useNewDashFormat = json.length > 0 && json[0].ip_address != null && json[0].ip_address != '';
- 
+
             return json;
           }
         },
@@ -86,6 +141,53 @@ block content
           { name: 'lastseen', data: 'lastseen', className: "lastSeenCol" },
           { name: 'lastpaid', data: 'lastpaid', className: "lastPaidCol" },
           { name: 'last_paid_block', data: 'last_paid_block', className: "lastPaidBlockCol" },
+          {
+            name: 'posePenalty',
+            data: 'posePenalty',
+            className: 'posePenaltyCol',
+            defaultContent: 0,
+            render: function(data, type, row) {
+              var penalty = firstNumber(
+                data,
+                row['pose_penalty'],
+                row['PoSePenalty'],
+                row['posePenalty']
+              );
+
+              if (type === 'sort' || type === 'type')
+                return penalty;
+
+              if (row['pose_is_banned'])
+                return '<span class="badge bg-danger">BANNED &middot; ' + penalty + '</span>';
+
+              if (penalty === 0)
+                return '<span class="badge bg-success">0</span>';
+
+              return '<span class="badge bg-warning text-dark">' + penalty + '</span>';
+            }
+          },
+          {
+            name: 'poseBanHeight',
+            data: 'poseBanHeight',
+            className: 'poseBanHeightCol',
+            defaultContent: -1,
+            render: function(data, type, row) {
+              var banHeight = firstNumber(
+                data,
+                row['pose_ban_height'],
+                row['PoSeBanHeight'],
+                row['poseBanHeight']
+              );
+
+              if (type === 'sort' || type === 'type')
+                return banHeight;
+
+              if (row['pose_is_banned'])
+                return '<span class="badge bg-danger">' + banHeight + '</span>';
+
+              return '<span class="text-muted">&mdash;</span>';
+            }
+          },
           { name: 'activetime', data: 'activetime', className: "activeTimeCol" },
           { name: 'status', data: 'status', className: "statusCol" }
         ],
@@ -95,19 +197,23 @@ block content
           if (useNewDashFormat)
             $("td.ipAddressCol", row).addClass("breakWord");
 
-          switch (data['status'].toUpperCase()) {
-            case 'ENABLED':
-              $("td.statusCol", row).addClass('table-success');
-              break;
-            case 'REMOVE':
-              $("td.statusCol", row).addClass('table-danger');
-              break;
-            case 'EXPIRED':
-              $("td.statusCol", row).addClass('table-warning');
-              break;
-            default:
-              $("td.statusCol", row).addClass('table-info');
-              break;
+          if (data['pose_is_banned']) {
+            $("td.statusCol", row).removeClass('table-success table-warning table-info').addClass('table-danger');
+          } else {
+            switch (String(data['status'] || '').toUpperCase()) {
+              case 'ENABLED':
+                $("td.statusCol", row).addClass('table-success');
+                break;
+              case 'REMOVE':
+                $("td.statusCol", row).addClass('table-danger');
+                break;
+              case 'EXPIRED':
+                $("td.statusCol", row).addClass('table-warning');
+                break;
+              default:
+                $("td.statusCol", row).addClass('table-info');
+                break;
+            }
           }
         },
         fnDrawCallback: function(settings) {
@@ -124,7 +230,9 @@ block content
             ctable.api().column('lastseen:name').visible(!useNewDashFormat, false);
             ctable.api().column('activetime:name').visible(!useNewDashFormat, false);
             ctable.api().column('ip_address:name').visible(useNewDashFormat, false);
-            ctable.api().column('last_paid_block:name').visible(useNewDashFormat);
+            ctable.api().column('last_paid_block:name').visible(useNewDashFormat, false);
+            ctable.api().column('posePenalty:name').visible(useNewDashFormat, false);
+            ctable.api().column('poseBanHeight:name').visible(useNewDashFormat);
           }, 0);
         }
       });
@@ -173,7 +281,7 @@ block content
       .cardSpacer.clearfix
     .card.card-default.border-0.cardSpacer
       .card-header
-        strong Smartrnode List
+        strong Smartnode List
       table#masternodes-table.table.table-bordered.table-striped.table-paging.table-hover
         - var theadClasses = [];
         if settings.shared_pages.table_header_bgcolor != null && settings.shared_pages.table_header_bgcolor != ''
@@ -188,6 +296,8 @@ block content
             th.text-center Last seen
             th.text-center Last paid
             th.text-center Last paid block
+            th.text-center PoSe penalty
+            th.text-center PoSe ban height
             th.text-center Active since
             th.text-center Status
         tbody.text-center

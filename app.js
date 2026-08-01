@@ -7,6 +7,7 @@ var express = require('express'),
     bodyParser = require('body-parser'),
     settings = require('./lib/settings'),
     routes = require('./routes/index'),
+    assetRoutes = require('./routes/assets'),
     lib = require('./lib/explorer'),
     db = require('./lib/database'),
     package_metadata = require('./package.json'),
@@ -58,6 +59,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // routes
 app.use('/api', nodeapi.app);
+app.use('/', assetRoutes);
 app.use('/', routes);
 
 // post method to claim an address using verifymessage functionality
@@ -518,62 +520,173 @@ app.use('/ext/getnetworkpeers', function(req, res) {
 
 // get the list of masternodes from local collection
 app.use('/ext/getmasternodelist', function(req, res) {
-  // check if the getmasternodelist api is enabled or else check the headers to see if it matches an internal ajax request from the explorer itself (TODO: come up with a more secure method of whitelisting ajax calls from the explorer)
-  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getmasternodelist.enabled == true) || (req.headers['x-requested-with'] != null && req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' && req.headers.referer != null && req.headers.accept.indexOf('text/javascript') > -1 && req.headers.accept.indexOf('application/json') > -1)) {
-    // get the masternode list from local collection
+  // check if the getmasternodelist api is enabled or else check the headers to see if it matches an internal ajax request from the explorer itself
+  if ((settings.api_page.enabled == true && settings.api_page.public_apis.ext.getmasternodelist.enabled == true) ||
+      (req.headers['x-requested-with'] != null &&
+       req.headers['x-requested-with'].toLowerCase() == 'xmlhttprequest' &&
+       req.headers.referer != null &&
+       req.headers.accept.indexOf('text/javascript') > -1 &&
+       req.headers.accept.indexOf('application/json') > -1)) {
+
     db.get_masternodes(function(masternodes) {
-      // loop through masternode list and remove the mongo _id and __v keys
-      for (i = 0; i < masternodes.length; i++) {
-        delete masternodes[i]['_doc']['_id'];
-        delete masternodes[i]['_doc']['__v'];
+
+      function firstValue() {
+        for (var i = 0; i < arguments.length; i++) {
+          if (
+            arguments[i] !== null &&
+            typeof arguments[i] !== 'undefined' &&
+            arguments[i] !== ''
+          ) {
+            return arguments[i];
+          }
+        }
+        return '';
       }
 
-      // return masternode list
-      res.send(masternodes);
+      function firstNumber() {
+        for (var i = 0; i < arguments.length; i++) {
+          if (
+            arguments[i] !== null &&
+            typeof arguments[i] !== 'undefined' &&
+            arguments[i] !== ''
+          ) {
+            var n = Number(arguments[i]);
+            if (!isNaN(n))
+              return n;
+          }
+        }
+        return 0;
+      }
+
+      var list = [];
+
+      for (var i = 0; i < masternodes.length; i++) {
+
+        var node = masternodes[i]._doc ?
+          Object.assign({}, masternodes[i]._doc) :
+          Object.assign({}, masternodes[i]);
+
+        delete node._id;
+        delete node.__v;
+
+        node.ip_address = firstValue(
+          node.ip_address,
+          node.service,
+          node.address,
+          node.addr
+        );
+
+        node.payoutAddress = firstValue(
+          node.payoutAddress,
+          node.payout_address,
+          node.payee,
+          node.paymentAddress
+        );
+
+        node.collateralAddress = firstValue(
+          node.collateralAddress,
+          node.collateral_address
+        );
+
+        node.ownerAddress = firstValue(
+          node.ownerAddress,
+          node.owner_address
+        );
+
+        node.posePenalty = firstNumber(
+          node.posePenalty,
+          node.PoSePenalty,
+          node.pose_penalty
+        );
+
+        node.poseBanHeight = firstNumber(
+          node.poseBanHeight,
+          node.PoSeBanHeight,
+          node.pose_ban_height
+        );
+
+        node.poseRevivedHeight = firstNumber(
+          node.poseRevivedHeight,
+          node.PoSeRevivedHeight,
+          node.pose_revived_height
+        );
+
+        node.last_paid_block = firstNumber(
+          node.last_paid_block,
+          node.lastPaidBlock,
+          node.lastpaidblock
+        );
+
+        list.push(node);
+      }
+
+      res.json(list);
     });
-  } else
+
+  } else {
     res.end('This method is disabled');
+  }
 });
 
 // returns a list of masternode reward txs for a single masternode address from a specific block height
 app.use('/ext/getmasternoderewards/:hash/:since', function(req, res) {
-  // check if the getmasternoderewards api is enabled
-  if (settings.api_page.enabled == true && settings.api_page.public_apis.ext.getmasternoderewards.enabled == true) {
+  if (settings.api_page.enabled == true &&
+      settings.api_page.public_apis.ext.getmasternoderewards.enabled == true) {
+
     db.get_masternode_rewards(req.params.hash, req.params.since, function(rewards) {
+
       if (rewards != null) {
-        // loop through the tx list to fix vout values and remove unnecessary data such as the always empty vin array and the mongo _id and __v keys
-        for (i = 0; i < rewards.length; i++) {
-          // remove unnecessary data keys
-          delete rewards[i]['vin'];
-          delete rewards[i]['_id'];
-          delete rewards[i]['__v'];
-          // convert amounts from satoshis
-          rewards[i]['total'] = rewards[i]['total'] / 100000000;
-          rewards[i]['vout']['amount'] = rewards[i]['vout']['amount'] / 100000000;
+
+        for (var i = 0; i < rewards.length; i++) {
+          delete rewards[i].vin;
+          delete rewards[i]._id;
+          delete rewards[i].__v;
+
+          rewards[i].total /= 100000000;
+          rewards[i].vout.amount /= 100000000;
         }
 
-        // return list of masternode rewards
         res.json(rewards);
-      } else
-        res.send({error: "failed to retrieve masternode rewards", hash: req.params.hash, since: req.params.since});
+
+      } else {
+        res.send({
+          error: "failed to retrieve masternode rewards",
+          hash: req.params.hash,
+          since: req.params.since
+        });
+      }
     });
-  } else
+
+  } else {
     res.end('This method is disabled');
+  }
 });
 
 // returns the total masternode rewards received for a single masternode address from a specific block height
 app.use('/ext/getmasternoderewardstotal/:hash/:since', function(req, res) {
   // check if the getmasternoderewardstotal api is enabled
-  if (settings.api_page.enabled == true && settings.api_page.public_apis.ext.getmasternoderewardstotal.enabled == true) {
-    db.get_masternode_rewards_totals(req.params.hash, req.params.since, function(total_rewards) {
-      if (total_rewards != null) {
-        // return the total of masternode rewards
-        res.json(total_rewards);
-      } else
-        res.send({error: "failed to retrieve masternode rewards", hash: req.params.hash, since: req.params.since});
-    });
-  } else
+  if (settings.api_page.enabled == true &&
+      settings.api_page.public_apis.ext.getmasternoderewardstotal.enabled == true) {
+
+    db.get_masternode_rewards_totals(
+      req.params.hash,
+      req.params.since,
+      function(total_rewards) {
+        if (total_rewards != null) {
+          res.json(total_rewards);
+        } else {
+          res.send({
+            error: 'failed to retrieve masternode rewards',
+            hash: req.params.hash,
+            since: req.params.since
+          });
+        }
+      }
+    );
+
+  } else {
     res.end('This method is disabled');
+  }
 });
 
 app.use('/ext/getnetworkchartdata', function(req, res) {
