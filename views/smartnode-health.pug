@@ -1,0 +1,71 @@
+extends layout
+
+block content
+  include ./includes/common.pug
+
+  .col-md-12.cardSpacer
+    .card.card-default.border-0.cardSpacer
+      .card-header
+        strong Smartnode Health
+
+      .card-body
+        if error
+          .alert.alert-danger
+            strong Report unavailable:
+            |  #{error}
+        else
+          if report.report_stale
+            .alert.alert-warning
+              strong Stale report:
+              if report.report_age_minutes != null
+                |  #{report.report_age_minutes} minutes old.
+              else
+                |  The report timestamp is unavailable.
+
+          .row
+            .col-md-3
+              strong Registered:
+              |  #{summary.total || 0}
+            .col-md-3
+              strong Reachable:
+              |  #{summary.reachable || 0}
+            .col-md-3
+              strong Unreachable:
+              |  #{summary.unreachable || 0}
+            .col-md-3
+              strong Reachability:
+              |  #{summary.reachability_percent || 0}%
+
+          hr
+
+          .table-responsive
+            table.table.table-bordered.table-striped.table-hover
+              thead
+                tr
+                  th Address
+                  th RPC Status
+                  th Port
+                  th Reachable
+                  th Latency
+                  th Protocol
+              tbody
+                each node in smartnodes
+                  tr
+                    td= node.advertised_address || 'N/A'
+                    td= node.smartnode_status || 'UNKNOWN'
+                    td= node.port || 'N/A'
+                    td
+                      if node.port_open
+                        span.badge.bg-success Yes
+                      else
+                        span.badge.bg-danger No
+                    td
+                      if node.latency_ms != null
+                        | #{node.latency_ms} ms
+                      else
+                        | N/A
+                    td
+                      if node.protocol != null
+                        = node.protocol
+                      else
+                        | N/A
