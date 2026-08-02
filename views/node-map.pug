@@ -1,0 +1,324 @@
+extends layout
+
+block content
+  include ./includes/common.pug
+
+  link(rel='stylesheet', href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', integrity='sha256-p4NxAoJBhIINfQ3yn3S7FJvXYI7pNEedDkM7eKQnQmI=', crossorigin='')
+  script(src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', integrity='sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=', crossorigin='')
+
+  style.
+    #nodeMap {
+      height: 650px;
+      min-height: 420px;
+      width: 100%;
+      border-radius: .375rem;
+      background: #e9ecef;
+    }
+
+    .node-map-card {
+      height: 100%;
+    }
+
+    .node-map-legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 5px;
+      border-radius: 50%;
+    }
+
+    .node-map-popup-table td {
+      padding: 2px 6px;
+      vertical-align: top;
+    }
+
+  script.
+    var nodeMap;
+    var nodeLayer;
+    var activeNodeType = 'smartnodes';
+
+    var countryCoordinates = {
+      AD: [42.5462, 1.6016], AE: [23.4241, 53.8478], AF: [33.9391, 67.7100],
+      AL: [41.1533, 20.1683], AM: [40.0691, 45.0382], AO: [-11.2027, 17.8739],
+      AR: [-38.4161, -63.6167], AT: [47.5162, 14.5501], AU: [-25.2744, 133.7751],
+      AZ: [40.1431, 47.5769], BA: [43.9159, 17.6791], BD: [23.6850, 90.3563],
+      BE: [50.5039, 4.4699], BG: [42.7339, 25.4858], BH: [25.9304, 50.6378],
+      BO: [-16.2902, -63.5887], BR: [-14.2350, -51.9253], BY: [53.7098, 27.9534],
+      CA: [56.1304, -106.3468], CH: [46.8182, 8.2275], CL: [-35.6751, -71.5430],
+      CN: [35.8617, 104.1954], CO: [4.5709, -74.2973], CR: [9.7489, -83.7534],
+      CY: [35.1264, 33.4299], CZ: [49.8175, 15.4730], DE: [51.1657, 10.4515],
+      DK: [56.2639, 9.5018], DO: [18.7357, -70.1627], DZ: [28.0339, 1.6596],
+      EC: [-1.8312, -78.1834], EE: [58.5953, 25.0136], EG: [26.8206, 30.8025],
+      ES: [40.4637, -3.7492], FI: [61.9241, 25.7482], FR: [46.2276, 2.2137],
+      GB: [55.3781, -3.4360], GE: [42.3154, 43.3569], GR: [39.0742, 21.8243],
+      HK: [22.3193, 114.1694], HR: [45.1000, 15.2000], HU: [47.1625, 19.5033],
+      ID: [-0.7893, 113.9213], IE: [53.1424, -7.6921], IL: [31.0461, 34.8516],
+      IN: [20.5937, 78.9629], IS: [64.9631, -19.0208], IT: [41.8719, 12.5674],
+      JP: [36.2048, 138.2529], KE: [-0.0236, 37.9062], KR: [35.9078, 127.7669],
+      KZ: [48.0196, 66.9237], LT: [55.1694, 23.8813], LU: [49.8153, 6.1296],
+      LV: [56.8796, 24.6032], MA: [31.7917, -7.0926], MD: [47.4116, 28.3699],
+      ME: [42.7087, 19.3744], MK: [41.6086, 21.7453], MT: [35.9375, 14.3754],
+      MX: [23.6345, -102.5528], MY: [4.2105, 101.9758], NG: [9.0820, 8.6753],
+      NL: [52.1326, 5.2913], NO: [60.4720, 8.4689], NZ: [-40.9006, 174.8860],
+      PA: [8.5380, -80.7821], PE: [-9.1900, -75.0152], PH: [12.8797, 121.7740],
+      PK: [30.3753, 69.3451], PL: [51.9194, 19.1451], PT: [39.3999, -8.2245],
+      RO: [45.9432, 24.9668], RS: [44.0165, 21.0059], RU: [61.5240, 105.3188],
+      SA: [23.8859, 45.0792], SE: [60.1282, 18.6435], SG: [1.3521, 103.8198],
+      SI: [46.1512, 14.9955], SK: [48.6690, 19.6990], TH: [15.8700, 100.9925],
+      TR: [38.9637, 35.2433], TW: [23.6978, 120.9605], UA: [48.3794, 31.1656],
+      US: [39.8283, -98.5795], UY: [-32.5228, -55.7658], VE: [6.4238, -66.5897],
+      VN: [14.0583, 108.2772], ZA: [-30.5595, 22.9375]
+    };
+
+    function escapeHtml(value) {
+      return $('<div>').text(value == null ? '' : String(value)).html();
+    }
+
+    function firstValue() {
+      for (var i = 0; i < arguments.length; i++) {
+        if (arguments[i] !== null && typeof arguments[i] !== 'undefined' && arguments[i] !== '')
+          return arguments[i];
+      }
+      return '';
+    }
+
+    function firstNumber() {
+      var value = firstValue.apply(null, arguments);
+      var number = Number(value);
+      return isNaN(number) ? 0 : number;
+    }
+
+    function normalizeCountryCode(node) {
+      return String(firstValue(node.country_code, node.countryCode, node.country_iso, node.country_iso_code)).toUpperCase();
+    }
+
+    function offsetCoordinate(base, index) {
+      var angle = index * 0.85;
+      var radius = Math.min(4, 0.22 + index * 0.035);
+      return [
+        base[0] + Math.sin(angle) * radius,
+        base[1] + Math.cos(angle) * radius
+      ];
+    }
+
+    function smartnodeState(node) {
+      var status = String(firstValue(node.status, node.state)).toUpperCase();
+      var penalty = firstNumber(node.pose_penalty, node.PoSePenalty, node.posePenalty);
+      var banHeight = firstNumber(node.pose_ban_height, node.PoSeBanHeight, node.poseBanHeight);
+      var revivedHeight = firstNumber(node.pose_revived_height, node.PoSeRevivedHeight, node.poseRevivedHeight);
+      var latency = firstNumber(node.latency_ms, node.latency);
+      var portOpen = node.port_open === true || node.reachable === true;
+      var poseBanned = status === 'POSE_BANNED' || (banHeight > 0 && revivedHeight < banHeight);
+
+      if (poseBanned)
+        return {key: 'pose-banned', label: 'PoSe Banned', color: '#dc3545'};
+      if (node.port_open === false || node.reachable === false)
+        return {key: 'offline', label: 'Offline', color: '#212529'};
+      if (penalty > 0)
+        return {key: 'penalized', label: 'PoSe Penalized', color: '#fd7e14'};
+      if (portOpen && latency >= 150)
+        return {key: 'slow', label: 'Slow', color: '#ffc107'};
+      if (portOpen)
+        return {key: 'online', label: 'Online', color: '#198754'};
+      return {key: 'unknown', label: 'Unknown', color: '#6c757d'};
+    }
+
+    function networkPopup(node) {
+      return '<strong>Network Node</strong>' +
+        '<table class="node-map-popup-table">' +
+        '<tr><td>Address</td><td>' + escapeHtml(firstValue(node.address, node.ip)) + '</td></tr>' +
+        '<tr><td>Port</td><td>' + escapeHtml(firstValue(node.port, '—')) + '</td></tr>' +
+        '<tr><td>Protocol</td><td>' + escapeHtml(firstValue(node.protocol, '—')) + '</td></tr>' +
+        '<tr><td>Version</td><td>' + escapeHtml(firstValue(node.version, '—')) + '</td></tr>' +
+        '<tr><td>Country</td><td>' + escapeHtml(firstValue(node.country, 'Unknown')) + '</td></tr>' +
+        '</table>';
+    }
+
+    function smartnodePopup(node, state) {
+      var endpoint = firstValue(node.advertised_address, node.address, node.ip);
+      return '<strong>Smartnode</strong>' +
+        '<table class="node-map-popup-table">' +
+        '<tr><td>Address</td><td>' + escapeHtml(endpoint) + '</td></tr>' +
+        '<tr><td>Health</td><td>' + escapeHtml(state.label) + '</td></tr>' +
+        '<tr><td>Status</td><td>' + escapeHtml(firstValue(node.status, 'Unknown')) + '</td></tr>' +
+        '<tr><td>Latency</td><td>' + escapeHtml(node.latency_ms == null ? '—' : Math.round(Number(node.latency_ms)) + ' ms') + '</td></tr>' +
+        '<tr><td>PoSe penalty</td><td>' + escapeHtml(firstNumber(node.pose_penalty, node.PoSePenalty, node.posePenalty)) + '</td></tr>' +
+        '<tr><td>Country</td><td>' + escapeHtml(firstValue(node.country, 'Unknown')) + '</td></tr>' +
+        '<tr><td>Provider</td><td>' + escapeHtml(firstValue(node.organization, '—')) + '</td></tr>' +
+        '</table>';
+    }
+
+    function updateSummary(summary, type, nodes, plotted) {
+      $('#mapTotalNodes').text(Number(firstValue(summary.total, nodes.length, 0)).toLocaleString());
+      $('#mapCountries').text(Number(firstValue(summary.countries, plotted.countries, 0)).toLocaleString());
+      $('#mapReachable').text(type === 'smartnodes' ? Number(firstValue(summary.reachable, plotted.reachable, 0)).toLocaleString() : '—');
+      $('#mapOffline').text(type === 'smartnodes' ? Number(firstValue(summary.unreachable, plotted.offline, 0)).toLocaleString() : '—');
+      $('#mapPoseBanned').text(type === 'smartnodes' ? Number(firstValue(summary.pose_banned, plotted.poseBanned, 0)).toLocaleString() : '—');
+      $('#mapPlotted').text(Number(plotted.total).toLocaleString());
+    }
+
+    function renderNodes(payload, type) {
+      var nodes = payload && Array.isArray(payload.nodes) ? payload.nodes : [];
+      var summary = payload && payload.summary ? payload.summary : {};
+      var perCountry = {};
+      var countries = {};
+      var plotted = {total: 0, countries: 0, reachable: 0, offline: 0, poseBanned: 0};
+
+      if (nodeLayer)
+        nodeLayer.clearLayers();
+
+      nodes.forEach(function(node) {
+        var code = normalizeCountryCode(node);
+        var base = countryCoordinates[code];
+
+        if (!base)
+          return;
+
+        if (!perCountry[code])
+          perCountry[code] = 0;
+
+        var coordinate = offsetCoordinate(base, perCountry[code]++);
+        var state = type === 'smartnodes' ? smartnodeState(node) : {key: 'network', label: 'Network node', color: '#0d6efd'};
+        var popup = type === 'smartnodes' ? smartnodePopup(node, state) : networkPopup(node);
+
+        if (state.key === 'online' || state.key === 'slow' || state.key === 'penalized')
+          plotted.reachable++;
+        if (state.key === 'offline')
+          plotted.offline++;
+        if (state.key === 'pose-banned')
+          plotted.poseBanned++;
+
+        L.circleMarker(coordinate, {
+          radius: 7,
+          color: state.color,
+          fillColor: state.color,
+          fillOpacity: 0.78,
+          weight: 2
+        }).bindPopup(popup, {maxWidth: 370}).addTo(nodeLayer);
+
+        countries[code] = true;
+        plotted.total++;
+      });
+
+      plotted.countries = Object.keys(countries).length;
+      updateSummary(summary, type, nodes, plotted);
+
+      $('#mapStatus').removeClass('alert-danger alert-warning').addClass('alert-info').text(
+        plotted.total + ' of ' + nodes.length + ' nodes plotted. Locations are approximate and shown at country level.'
+      );
+
+      if (plotted.total > 0) {
+        var bounds = nodeLayer.getBounds();
+        if (bounds.isValid())
+          nodeMap.fitBounds(bounds.pad(0.12), {maxZoom: 5});
+      }
+    }
+
+    function setActiveButton(type) {
+      $('#showNetworkNodes, #showSmartnodes').removeClass('btn-primary').addClass('btn-outline-primary');
+      if (type === 'network')
+        $('#showNetworkNodes').removeClass('btn-outline-primary').addClass('btn-primary');
+      else
+        $('#showSmartnodes').removeClass('btn-outline-primary').addClass('btn-primary');
+    }
+
+    function loadNodeType(type) {
+      activeNodeType = type;
+      setActiveButton(type);
+      $('#mapStatus').removeClass('alert-danger alert-warning').addClass('alert-info').text('Loading ' + (type === 'network' ? 'network nodes' : 'Smartnodes') + '…');
+
+      $.getJSON('/ext/getnodemap?type=' + encodeURIComponent(type))
+        .done(function(payload) {
+          renderNodes(payload, type);
+        })
+        .fail(function(xhr) {
+          var message = xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Unable to load node map data';
+          $('#mapStatus').removeClass('alert-info alert-warning').addClass('alert-danger').text(message);
+          if (nodeLayer)
+            nodeLayer.clearLayers();
+        });
+    }
+
+    $(document).ready(function() {
+      nodeMap = L.map('nodeMap', {
+        minZoom: 2,
+        worldCopyJump: true
+      }).setView([25, 0], 2);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(nodeMap);
+
+      nodeLayer = L.featureGroup().addTo(nodeMap);
+
+      $('#showNetworkNodes').on('click', function() {
+        loadNodeType('network');
+      });
+
+      $('#showSmartnodes').on('click', function() {
+        loadNodeType('smartnodes');
+      });
+
+      loadNodeType('smartnodes');
+    });
+
+  .col-md-12.cardSpacer
+    .container-fluid
+      #page-header-container
+        #page-title-container
+          h3#page-title #{settings.coin.name} Node Map
+          .sub-page-header.text-muted View known network peers and registered Smartnodes around the world.
+      .cardSpacer.clearfix
+
+      .d-flex.flex-wrap.justify-content-between.align-items-center.gap-2.mb-3
+        .btn-group(role='group', aria-label='Node map layer')
+          button.btn.btn-outline-primary#showNetworkNodes(type='button') Network Nodes
+          button.btn.btn-primary#showSmartnodes(type='button') Smartnodes
+        .small.text-muted
+          span.node-map-legend-dot(style='background:#0d6efd')
+          | Network
+          span.node-map-legend-dot.ms-3(style='background:#198754')
+          | Online
+          span.node-map-legend-dot.ms-3(style='background:#fd7e14')
+          | Penalized
+          span.node-map-legend-dot.ms-3(style='background:#212529')
+          | Offline
+          span.node-map-legend-dot.ms-3(style='background:#dc3545')
+          | PoSe Banned
+
+      .row.g-2.mb-3
+        .col-xl-2.col-md-4.col-6
+          .card.border-primary.node-map-card
+            .card-body.text-center
+              h6.text-muted Total Nodes
+              h3#mapTotalNodes.mb-0 --
+        .col-xl-2.col-md-4.col-6
+          .card.border-info.node-map-card
+            .card-body.text-center
+              h6.text-muted Countries
+              h3#mapCountries.mb-0 --
+        .col-xl-2.col-md-4.col-6
+          .card.border-success.node-map-card
+            .card-body.text-center
+              h6.text-muted Reachable
+              h3#mapReachable.mb-0 --
+        .col-xl-2.col-md-4.col-6
+          .card.border-dark.node-map-card
+            .card-body.text-center
+              h6.text-muted Offline
+              h3#mapOffline.mb-0 --
+        .col-xl-2.col-md-4.col-6
+          .card.border-danger.node-map-card
+            .card-body.text-center
+              h6.text-muted PoSe Banned
+              h3#mapPoseBanned.mb-0 --
+        .col-xl-2.col-md-4.col-6
+          .card.border-secondary.node-map-card
+            .card-body.text-center
+              h6.text-muted Plotted
+              h3#mapPlotted.mb-0 --
+
+      .alert.alert-info#mapStatus(role='status') Loading Smartnodes…
+      #nodeMap
+      p.small.text-muted.mt-2.mb-0 Node locations are approximate and displayed at country level. Exact IP geolocation is intentionally not exposed.
