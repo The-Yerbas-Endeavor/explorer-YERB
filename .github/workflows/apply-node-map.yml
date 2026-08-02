@@ -1,0 +1,117 @@
+name: Apply node map integration
+
+on:
+  push:
+    branches:
+      - map
+    paths:
+      - .github/workflows/apply-node-map.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-node-map:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out map branch
+        uses: actions/checkout@v4
+        with:
+          ref: map
+          fetch-depth: 0
+
+      - name: Apply guarded node map patches
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              file_path = Path(path)
+              text = file_path.read_text()
+
+              if new in text:
+                  print(f'{label}: already applied')
+                  return
+
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f'{label}: expected exactly one marker, found {count}'
+                  )
+
+              file_path.write_text(text.replace(old, new, 1))
+              print(f'{label}: applied')
+
+          # Add a default page setting without requiring an immediate local
+          # settings.json edit. A settings.json node_map_page block can still
+          # override these values through the normal settings loader.
+          replace_once(
+              'lib/settings.js',
+              '/* Shared page settings */',
+              '''// node_map_page: controls the interactive network and Smartnode map page\nexports.node_map_page = {\n  "enabled": true,\n  "default_layer": "smartnodes",\n  "show_network_nodes": true,\n  "show_smartnodes": true,\n  "map_height": 650\n};\n\n/* Shared page settings */''',
+              'lib/settings.js node_map_page defaults'
+          )
+
+          route_marker = '''// masternode list page\nrouter.get('/masternodes', function(req, res) {'''
+
+          route_block = '''// node map page and data API\nrouter.get('/node-map', function(req, res) {\n  if (\n    settings.node_map_page &&\n    settings.node_map_page.enabled === true\n  ) {\n    return res.render('node-map', {\n      active: 'node-map',\n      showSync: db.check_show_sync_message(),\n      styleHash: get_file_timestamp('./public/css/style.scss'),\n      themeHash: get_file_timestamp(\n        './public/css/themes/' +\n        settings.shared_pages.theme.toLowerCase() +\n        '/bootstrap.min.css'\n      ),\n      page_title_prefix: settings.coin.name + ' Node Map'\n    });\n  }\n\n  return route_get_index(res, null);\n});\n\nrouter.get('/ext/getnodemap', function(req, res) {\n  if (\n    !settings.node_map_page ||\n    settings.node_map_page.enabled !== true\n  ) {\n    return res.status(404).json({\n      error: 'Node map is disabled'\n    });\n  }\n\n  var type = String(req.query.type || 'smartnodes').toLowerCase();\n\n  if (type === 'network') {\n    if (settings.node_map_page.show_network_nodes === false) {\n      return res.status(404).json({\n        error: 'Network node map is disabled'\n      });\n    }\n\n    var Peers = require('../models/peers');\n\n    return Peers.find({}).lean().exec(function(err, peers) {\n      if (err) {\n        return res.status(500).json({\n          error: 'Unable to load network peers'\n        });\n      }\n\n      peers = Array.isArray(peers) ? peers : [];\n\n      var countries = {};\n      peers.forEach(function(peer) {\n        var code = String(peer.country_code || '').toUpperCase();\n        if (code)\n          countries[code] = true;\n      });\n\n      return res.json({\n        type: 'network',\n        summary: {\n          total: peers.length,\n          countries: Object.keys(countries).length\n        },\n        nodes: peers\n      });\n    });\n  }\n\n  if (type !== 'smartnodes') {\n    return res.status(400).json({\n      error: 'Invalid node map type'\n    });\n  }\n\n  if (settings.node_map_page.show_smartnodes === false) {\n    return res.status(404).json({\n      error: 'Smartnode map is disabled'\n    });\n  }\n\n  if (\n    !settings.smartnode_health_page ||\n    settings.smartnode_health_page.enabled !== true\n  ) {\n    return res.status(503).json({\n      error: 'Smartnode Health is not enabled'\n    });\n  }\n\n  return smartnodeHealth.loadReport(\n    settings.smartnode_health_page,\n    function(err, report) {\n      if (err) {\n        return res.status(err.status || 503).json({\n          error: err.message || 'Smartnode Health report is unavailable'\n        });\n      }\n\n      var summary = Object.assign({}, report.summary || {});\n      var statuses = summary.statuses || {};\n\n      if (summary.pose_banned == null)\n        summary.pose_banned = Number(statuses.POSE_BANNED || 0);\n\n      return res.json({\n        type: 'smartnodes',\n        generated_at: report.generated_at || null,\n        report_age_minutes: report.report_age_minutes,\n        report_stale: report.report_stale,\n        summary: summary,\n        nodes: Array.isArray(report.smartnodes)\n          ? report.smartnodes\n          : []\n      });\n    }\n  );\n});\n\n// masternode list page\nrouter.get('/masternodes', function(req, res) {'''
+
+          replace_once(
+              'routes/index.js',
+              route_marker,
+              route_block,
+              'routes/index.js node map route and API'
+          )
+
+          nav_marker = '''              if settings.network_page.enabled == true\n                li#network.nav-item\n                  a.nav-link(href='/network')\n                    span.fas.fa-network-wired\n                    span.margin-left-5 #{settings.locale.menu_network}\n              if settings.richlist_page.enabled == true'''
+
+          nav_block = '''              if settings.network_page.enabled == true\n                li#network.nav-item\n                  a.nav-link(href='/network')\n                    span.fas.fa-network-wired\n                    span.margin-left-5 #{settings.locale.menu_network}\n              if settings.node_map_page && settings.node_map_page.enabled == true\n                li#node-map.nav-item\n                  a.nav-link(href='/node-map')\n                    span.fas.fa-globe-americas\n                    span.margin-left-5 Node Map\n              if settings.richlist_page.enabled == true'''
+
+          replace_once(
+              'views/layout.pug',
+              nav_marker,
+              nav_block,
+              'views/layout.pug Node Map navigation item'
+          )
+
+          # Make the map height configurable while preserving a safe default.
+          replace_once(
+              'views/node-map.pug',
+              '''    #nodeMap {\n      height: 650px;''',
+              '''    #nodeMap {\n      height: #{settings.node_map_page && settings.node_map_page.map_height ? settings.node_map_page.map_height : 650}px;''',
+              'views/node-map.pug configurable map height'
+          )
+
+          print('All guarded patches completed successfully')
+          PY
+
+      - name: Install Node dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate JavaScript and Pug
+        shell: bash
+        run: |
+          node --check routes/index.js
+          node --check lib/settings.js
+          node - <<'NODE'
+          const pug = require('pug');
+          pug.compileFile('views/layout.pug');
+          pug.compileFile('views/node-map.pug');
+          console.log('Node map JavaScript and Pug validation passed');
+          NODE
+
+      - name: Commit integrated node map
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No node map changes were needed.'
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/settings.js routes/index.js views/layout.pug views/node-map.pug
+          git commit -m 'Integrate network and Smartnode map'
+          git push origin map
