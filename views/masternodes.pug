@@ -36,14 +36,95 @@ block content
       }
       return 0;
     }
+    function normalizeHealthEndpoint(value) {
+      return String(value || '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function healthEndpointFromNode(node) {
+      if (!node)
+        return '';
+
+      if (node.advertised_address)
+        return normalizeHealthEndpoint(node.advertised_address);
+
+      if (!node.ip)
+        return '';
+
+      var port = Number(node.port || 15420);
+
+      if (String(node.ip).indexOf(':') !== -1)
+        return normalizeHealthEndpoint('[' + node.ip + ']:' + port);
+
+      return normalizeHealthEndpoint(node.ip + ':' + port);
+    }
+    function setDashboardCardActive(cardId) {
+      $('.smartnode-dashboard-card').removeClass('active-dashboard');
+      if (cardId)
+        $('#' + cardId).addClass('active-dashboard');
+    }
+
     $(document).ready(function() {
       var useNewDashFormat = false;
       var labels = !{JSON.stringify(settings.labels)};
+      var healthByAddress = {};
+      var healthLoaded = false;
+      var activeDashboardFilter = 'all';
+
+      $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        if (
+          settings.nTable == null ||
+          settings.nTable.id !== 'masternodes-table' ||
+          activeDashboardFilter === 'all'
+        ) {
+          return true;
+        }
+
+        var api = new $.fn.dataTable.Api(settings);
+        var row = api.row(dataIndex).data();
+
+        if (!row)
+          return false;
+
+        var endpoint = normalizeHealthEndpoint(
+          row['ip_address'] || row['addr'] || ''
+        );
+        var health = healthByAddress[endpoint];
+        var status = String(row['status'] || '').toUpperCase();
+        var isPoseBanned =
+          row['pose_is_banned'] ||
+          status === 'POSE_BANNED';
+
+        if (activeDashboardFilter === 'reachable')
+          return !!health && health.port_open === true && !isPoseBanned;
+
+        if (activeDashboardFilter === 'offline')
+          return !!health && health.port_open !== true && !isPoseBanned;
+
+        if (activeDashboardFilter === 'pose-banned')
+          return isPoseBanned;
+
+        if (activeDashboardFilter === 'pose-penalized') {
+          var penalty = Number(
+            row.posePenalty ??
+            row.PoSePenalty ??
+            row.pose_penalty ??
+            0
+          );
+
+          return penalty > 0;
+        }
+
+        return true;
+
+      });
+
       var ctable = $('#masternodes-table').dataTable({
         autoWidth: true,
         searching: true,
         ordering: true,
-        order: [[ 5, 'desc' ]],
+        order: [[ 9, 'desc' ]],
         responsive: true,
         lengthChange: true,
         processing: true,
@@ -60,20 +141,44 @@ block content
           url: '/ext/getmasternodelist',
           dataSrc: function(json) {
             for (i = 0; i < json.length; i++) {
-    var addr = json[i]['addr'] || '';
+              var addr = json[i]['addr'] || '';
 
-    if (
-      json[i]['ip_address'] == null ||
-      json[i]['ip_address'] == ''
-    ) {
-      json[i]['ip_address'] = addr;
-    }
-              json[i]['lastseen'] = '<span' + (#{settings.shared_pages.date_time.enable_alt_timezone_tooltips} == true ? ' data-bs-toggle="tooltip" data-bs-placement="auto" title="' + format_unixtime(json[i]['lastseen'], true) + '"' : '') + '>' + format_unixtime(json[i]['lastseen']) + '</span>';
+              if (
+                json[i]['ip_address'] == null ||
+                json[i]['ip_address'] == ''
+              ) {
+                json[i]['ip_address'] = addr;
+              }
 
-              if (typeof json[i]['lastpaid'] != 'undefined' && json[i]['lastpaid'] != '' && json[i]['lastpaid'] != '0')
-                json[i]['lastpaid'] = '<span' + (#{settings.shared_pages.date_time.enable_alt_timezone_tooltips} == true ? ' data-bs-toggle="tooltip" data-bs-placement="auto" title="' + format_unixtime(json[i]['lastpaid'], true) + '"' : '') + '>' + format_unixtime(json[i]['lastpaid']) + '</span>';
-              else
+              json[i]['lastseen'] =
+                '<span' +
+                (#{settings.shared_pages.date_time.enable_alt_timezone_tooltips} == true
+                  ? ' data-bs-toggle="tooltip" data-bs-placement="auto" title="' +
+                    format_unixtime(json[i]['lastseen'], true) +
+                    '"'
+                  : '') +
+                '>' +
+                format_unixtime(json[i]['lastseen']) +
+                '</span>';
+
+              if (
+                typeof json[i]['lastpaid'] != 'undefined' &&
+                json[i]['lastpaid'] != '' &&
+                json[i]['lastpaid'] != '0'
+              ) {
+                json[i]['lastpaid'] =
+                  '<span' +
+                  (#{settings.shared_pages.date_time.enable_alt_timezone_tooltips} == true
+                    ? ' data-bs-toggle="tooltip" data-bs-placement="auto" title="' +
+                      format_unixtime(json[i]['lastpaid'], true) +
+                      '"'
+                    : '') +
+                  '>' +
+                  format_unixtime(json[i]['lastpaid']) +
+                  '</span>';
+              } else {
                 json[i]['lastpaid'] = '<em>N/A</em>';
+              }
 
               if (json[i]['activetime'])
                 json[i]['activetime'] = secondsToHms(json[i]['activetime']);
@@ -83,7 +188,7 @@ block content
               var walletAddress =
                 json[i]['payoutAddress'] ||
                 json[i]['collateralAddress'] ||
-    json[i]['ownerAddress'] ||
+                json[i]['ownerAddress'] ||
                 '';
 
               if (walletAddress != '') {
@@ -93,8 +198,8 @@ block content
                   "'>" +
                   walletAddress +
                   ('#{settings.claim_address_page.enabled}' == 'true' &&
-                   json[i]['claim_name'] != null &&
-                   json[i]['claim_name'] != ''
+                  json[i]['claim_name'] != null &&
+                  json[i]['claim_name'] != ''
                     ? ' <span class="small fw-normal">(' +
                       json[i]['claim_name'] +
                       ')</span>'
@@ -116,31 +221,224 @@ block content
                 json[i]['poseRevivedHeight']
               );
 
+              var nodeStatus = String(
+                json[i]['status'] || ''
+              ).toUpperCase();
+
               json[i]['pose_is_banned'] =
-                poseBanHeight > 0 &&
-                poseRevivedHeight < poseBanHeight;
-              if (labels[addr] != null && labels[addr].enabled == true) {
-                if (labels[addr].type)
-                  json[i]['addr'] = '<div><label class="badge bg-' + labels[addr].type + '" style="margin-bottom:10px;">' + labels[addr].label + (labels[addr].url ? '<a href="' + labels[addr].url + '" target="_blank", alt="Visit site", title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa fa-question-circle" style="margin-left:5px"></span></a>' : '') + '</label></div>' + json[i]['addr'];
-                else
-                  json[i]['addr'] = '<div><label class="badge bg-default" style="margin-bottom:10px;">' + labels[addr].label + (labels[addr].url ? '<a href="' + labels[addr].url + '" target="_blank", alt="Visit site", title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa fa-question-circle" style="margin-left:5px"></span></a>' : '') + '</label></div>' + json[i]['addr'];
+                nodeStatus === 'POSE_BANNED' ||
+                (
+                  poseBanHeight > 0 &&
+                  poseRevivedHeight < poseBanHeight
+                );
+
+              if (
+                labels[addr] != null &&
+                labels[addr].enabled == true
+              ) {
+                if (labels[addr].type) {
+                  json[i]['addr'] =
+                    '<div><label class="badge bg-' +
+                    labels[addr].type +
+                    '" style="margin-bottom:10px;">' +
+                    labels[addr].label +
+                    (labels[addr].url
+                      ? '<a href="' +
+                        labels[addr].url +
+                        '" target="_blank", alt="Visit site", title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa fa-question-circle" style="margin-left:5px"></span></a>'
+                      : '') +
+                    '</label></div>' +
+                    json[i]['addr'];
+                } else {
+                  json[i]['addr'] =
+                    '<div><label class="badge bg-default" style="margin-bottom:10px;">' +
+                    labels[addr].label +
+                    (labels[addr].url
+                      ? '<a href="' +
+                        labels[addr].url +
+                        '" target="_blank", alt="Visit site", title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa fa-question-circle" style="margin-left:5px"></span></a>'
+                      : '') +
+                    '</label></div>' +
+                    json[i]['addr'];
+                }
               }
             }
 
-            useNewDashFormat = json.length > 0 && json[0].ip_address != null && json[0].ip_address != '';
+            useNewDashFormat =
+              json.length > 0 &&
+              json[0].ip_address != null &&
+              json[0].ip_address != '';
 
             return json;
           }
         },
         columns: [
-          { name: 'rank', data: 'rank', className: "rankCol" },
-          { name: 'network', data: 'network', className: "networkCol" },
-          { name: 'ip_address', data: 'ip_address', className: "ipAddressCol" },
-          { name: 'addr', data: 'addr', className: "addressCol" },
-          { name: 'version', data: 'version', className: "versionCol" },
-          { name: 'lastseen', data: 'lastseen', className: "lastSeenCol" },
-          { name: 'lastpaid', data: 'lastpaid', className: "lastPaidCol" },
-          { name: 'last_paid_block', data: 'last_paid_block', className: "lastPaidBlockCol" },
+          { name: 'rank', data: 'rank', defaultContent: 0, className: 'rankCol' },
+          { name: 'network', data: 'network', defaultContent: '', className: 'networkCol' },
+          { name: 'ip_address', data: 'ip_address', defaultContent: '', className: 'ipAddressCol' },
+          {
+            name: 'health',
+            data: null,
+            className: 'healthCol',
+            orderable: true,
+            searchable: false,
+            defaultContent: '',
+            render: function(data, type, row) {
+              var endpoint = normalizeHealthEndpoint(
+                row['ip_address'] || row['addr'] || ''
+              );
+              var health = healthByAddress[endpoint];
+              var status = String(
+                row['status'] || ''
+              ).toUpperCase();
+              var isPoseBanned =
+                row['pose_is_banned'] ||
+                status === 'POSE_BANNED';
+
+              if (type === 'sort' || type === 'type') {
+                if (isPoseBanned)
+                  return 0;
+                if (!healthLoaded)
+                  return 1;
+                if (!health)
+                  return 2;
+                if (!health.port_open)
+                  return 3;
+
+                var sortLatency = Number(health.latency_ms);
+                if (!isNaN(sortLatency) && sortLatency >= 150)
+                  return 4;
+
+                return 5;
+              }
+
+              var tooltipParts = [];
+
+              if (health) {
+                if (health.reverse_dns)
+                  tooltipParts.push('DNS: ' + health.reverse_dns);
+
+                if (health.country)
+                  tooltipParts.push(
+                    'Location: ' +
+                    [
+                      health.city || '',
+                      health.country || ''
+                    ].filter(Boolean).join(', ')
+                  );
+
+                if (health.organization)
+                  tooltipParts.push(
+                    'Provider: ' + health.organization
+                  );
+
+                if (health.latency_ms != null)
+                  tooltipParts.push(
+                    'Latency: ' +
+                    Number(health.latency_ms).toFixed(0) +
+                    ' ms'
+                  );
+
+                if (health.error)
+                  tooltipParts.push(
+                    'Error: ' + health.error
+                  );
+              }
+
+              if (endpoint)
+                tooltipParts.push('Address: ' + endpoint);
+
+              var tooltip = $('<div>')
+                .text(
+                  tooltipParts.length
+                    ? tooltipParts.join(' | ')
+                    : 'No health details available'
+                )
+                .html();
+
+              var href =
+                '/smartnode-health?address=' +
+                encodeURIComponent(endpoint);
+
+              if (isPoseBanned) {
+                return '<a href="' + href + '" ' +
+                  'class="badge bg-danger text-decoration-none" ' +
+                  'data-bs-toggle="tooltip" data-bs-placement="auto" ' +
+                  'title="' + tooltip + '">' +
+                  'PoSe Banned</a>';
+              }
+
+              if (!healthLoaded) {
+                return '<span class="badge bg-secondary">Loading</span>';
+              }
+
+              if (!health) {
+                return '<a href="' + href + '" ' +
+                  'class="badge bg-secondary text-decoration-none" ' +
+                  'data-bs-toggle="tooltip" data-bs-placement="auto" ' +
+                  'title="' + tooltip + '">' +
+                  'Unknown</a>';
+              }
+
+              if (!health.port_open) {
+                return '<a href="' + href + '" ' +
+                  'class="badge badge-health-offline text-decoration-none" ' +
+                  'data-bs-toggle="tooltip" data-bs-placement="auto" ' +
+                  'title="' + tooltip + '">' +
+                  'Offline</a>';
+              }
+
+              var latency = Number(health.latency_ms);
+
+              if (!isNaN(latency) && latency >= 150) {
+                return '<a href="' + href + '" ' +
+                  'class="badge bg-warning text-dark text-decoration-none" ' +
+                  'data-bs-toggle="tooltip" data-bs-placement="auto" ' +
+                  'title="' + tooltip + '">' +
+                  'Slow &middot; ' +
+                  latency.toFixed(0) +
+                  ' ms</a>';
+              }
+
+              return '<a href="' + href + '" ' +
+                'class="badge bg-success text-decoration-none" ' +
+                'data-bs-toggle="tooltip" data-bs-placement="auto" ' +
+                'title="' + tooltip + '">' +
+                'Online' +
+                (!isNaN(latency)
+                  ? ' &middot; ' +
+                    latency.toFixed(0) +
+                    ' ms'
+                  : '') +
+                '</a>';
+            }
+          },
+          {
+            name: 'latency',
+            data: null,
+            visible: false,
+            searchable: false,
+            defaultContent: 0,
+            render: function(data, type, row) {
+              var endpoint = normalizeHealthEndpoint(
+                row['ip_address'] || row['addr'] || ''
+              );
+              var health = healthByAddress[endpoint];
+              var latency = health
+                ? Number(health.latency_ms)
+                : Number.NaN;
+
+              if (isNaN(latency))
+                return -1;
+
+              return latency;
+            }
+          },
+          { name: 'addr', data: 'addr', defaultContent: '', className: 'addressCol' },
+          { name: 'version', data: 'version', defaultContent: 0, className: 'versionCol' },
+          { name: 'lastseen', data: 'lastseen', defaultContent: 0, className: 'lastSeenCol' },
+          { name: 'lastpaid', data: 'lastpaid', defaultContent: 0, className: 'lastPaidCol' },
+          { name: 'last_paid_block', data: 'last_paid_block', defaultContent: 0, className: 'lastPaidBlockCol' },
           {
             name: 'posePenalty',
             data: 'posePenalty',
@@ -157,13 +455,18 @@ block content
               if (type === 'sort' || type === 'type')
                 return penalty;
 
-              if (row['pose_is_banned'])
-                return '<span class="badge bg-danger">BANNED &middot; ' + penalty + '</span>';
+              if (row['pose_is_banned']) {
+                return '<span class="badge bg-danger">BANNED &middot; ' +
+                  penalty +
+                  '</span>';
+              }
 
               if (penalty === 0)
                 return '<span class="badge bg-success">0</span>';
 
-              return '<span class="badge bg-warning text-dark">' + penalty + '</span>';
+              return '<span class="badge bg-warning text-dark">' +
+                penalty +
+                '</span>';
             }
           },
           {
@@ -182,14 +485,23 @@ block content
               if (type === 'sort' || type === 'type')
                 return banHeight;
 
-              if (row['pose_is_banned'])
-                return '<span class="badge bg-danger">' + banHeight + '</span>';
+              if (banHeight > 0) {
+                if (row['pose_is_banned']) {
+                  return '<span class="badge bg-danger">' +
+                    banHeight +
+                    '</span>';
+                }
+
+                return '<span class="badge bg-warning text-dark">' +
+                  banHeight +
+                  '</span>';
+              }
 
               return '<span class="text-muted">&mdash;</span>';
             }
           },
-          { name: 'activetime', data: 'activetime', className: "activeTimeCol" },
-          { name: 'status', data: 'status', className: "statusCol" }
+          { name: 'activetime', data: 'activetime', defaultContent: 0, className: 'activeTimeCol' },
+          { name: 'status', data: 'status', defaultContent: 'UNKNOWN', className: 'statusCol' }
         ],
         rowCallback: function(row, data, index) {
           $("td.addressCol", row).addClass("breakWord");
@@ -230,11 +542,131 @@ block content
             ctable.api().column('lastseen:name').visible(!useNewDashFormat, false);
             ctable.api().column('activetime:name').visible(!useNewDashFormat, false);
             ctable.api().column('ip_address:name').visible(useNewDashFormat, false);
+            ctable.api().column('health:name').visible(useNewDashFormat, false);
             ctable.api().column('last_paid_block:name').visible(useNewDashFormat, false);
             ctable.api().column('posePenalty:name').visible(useNewDashFormat, false);
             ctable.api().column('poseBanHeight:name').visible(useNewDashFormat);
           }, 0);
         }
+      });
+
+      $.getJSON('/ext/smartnodehealth')
+        .done(function(report) {
+          var nodes =
+            report && Array.isArray(report.smartnodes)
+              ? report.smartnodes
+              : [];
+
+          healthByAddress = {};
+
+          for (var h = 0; h < nodes.length; h++) {
+            var healthNode = nodes[h];
+            var endpoint = healthEndpointFromNode(healthNode);
+
+            if (endpoint)
+              healthByAddress[endpoint] = healthNode;
+
+            if (healthNode.advertised_address) {
+              healthByAddress[
+                normalizeHealthEndpoint(
+                  healthNode.advertised_address
+                )
+              ] = healthNode;
+            }
+          }
+
+          healthLoaded = true;
+
+          var summary = report && report.summary
+            ? report.summary
+            : {};
+
+          var tableRows = ctable.api().rows().data().toArray();
+          var posePenalizedCount = 0;
+
+          for (var r = 0; r < tableRows.length; r++) {
+            var penalty = Number(
+              tableRows[r].posePenalty ??
+              tableRows[r].PoSePenalty ??
+              tableRows[r].pose_penalty ??
+              0
+            );
+
+            if (penalty > 0)
+              posePenalizedCount++;
+       }
+
+          $('#dashboardRegistered').text(
+            Number(summary.total || nodes.length || tableRows.length)
+          );
+          $('#dashboardReachable').text(
+            Number(summary.reachable || 0)
+          );
+          $('#dashboardOffline').text(
+            Number(summary.unreachable || 0)
+          );
+          $('#dashboardReachability').text(
+            Number(summary.reachability_percent || 0).toFixed(1) + '%'
+          );
+          $('#dashboardPoseBanned').text(
+            Number(
+              summary.statuses &&
+              summary.statuses.POSE_BANNED
+                ? summary.statuses.POSE_BANNED
+                : 0
+            )
+          );
+          $('#dashboardLatency').text(
+            Number(summary.average_latency_ms || 0).toFixed(0) + ' ms'
+          );
+          $('#dashboardPosePenalized').text(posePenalizedCount);
+          $('#networkHealthDashboard').show();
+
+          ctable.api().rows().invalidate().draw(false);
+        })
+        .fail(function() {
+          healthLoaded = true;
+          ctable.api().rows().invalidate().draw(false);
+        });
+
+      $('.smartnode-dashboard-card').on('click', function() {
+        var action = $(this).data('action');
+        var cardId = $(this).attr('id');
+
+        activeDashboardFilter = 'all';
+        ctable.api().search('');
+        ctable.api().columns().search('');
+
+        if (action === 'reachable')
+          activeDashboardFilter = 'reachable';
+        else if (action === 'offline')
+          activeDashboardFilter = 'offline';
+        else if (action === 'pose-banned')
+          activeDashboardFilter = 'pose-banned';
+        else if (action === 'pose-penalized')
+          activeDashboardFilter = 'pose-penalized';
+
+        if (action === 'latency') {
+          var latencyIndex =
+            ctable.api().column('latency:name').index();
+
+          ctable.api().order([
+            [latencyIndex, 'desc']
+          ]);
+        } else if (
+          action === 'all' ||
+          action === 'reachability'
+        ) {
+          var paidBlockIndex =
+            ctable.api().column('last_paid_block:name').index();
+
+          ctable.api().order([
+            [paidBlockIndex, 'desc']
+          ]);
+        }
+
+        setDashboardCardActive(cardId);
+        ctable.api().draw();
       });
 
       if ('#{settings.masternodes_page.page_header.show_last_updated}' == 'true') {
@@ -279,6 +711,78 @@ block content
             else
               .sub-page-header.text-muted=settings.locale.mn_description.replace('{1}', settings.coin.name)
       .cardSpacer.clearfix
+
+    style.
+      .smartnode-dashboard-card {
+        cursor: pointer;
+        height: 100%;
+        transition: transform .15s ease, box-shadow .15s ease, border-width .15s ease;
+      }
+
+      .smartnode-dashboard-card:hover,
+      .smartnode-dashboard-card.active-dashboard {
+        transform: translateY(-2px);
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+        border-width: 3px !important;
+      }
+
+      .smartnode-dashboard-card .card-body {
+        padding: .85rem .5rem;
+      }
+
+      .smartnode-dashboard-card h6 {
+        font-size: .78rem;
+        margin-bottom: .35rem;
+        white-space: nowrap;
+      }
+
+      .smartnode-dashboard-card h3 {
+        font-size: 1.35rem;
+      }
+
+    .row.g-2.mb-4#networkHealthDashboard(style='display:none')
+      .col-xl.col-lg-3.col-md-4.col-6
+        .card.border-primary.shadow-sm.smartnode-dashboard-card#dashboardCardRegistered(data-action='all', role='button', tabindex='0')
+          .card-body.text-center
+            h6.text-muted Registered
+            h3#dashboardRegistered.mb-0 --
+
+      .col-xl.col-lg-3.col-md-4.col-6
+        .card.border-success.shadow-sm.smartnode-dashboard-card#dashboardCardReachable(data-action='reachable', role='button', tabindex='0')
+          .card-body.text-center
+            h6.text-muted Reachable
+            h3#dashboardReachable.mb-0 --
+
+      .col-xl.col-lg-3.col-md-4.col-6
+        .card.border-dark.shadow-sm.smartnode-dashboard-card#dashboardCardOffline(data-action='offline', role='button', tabindex='0')
+          .card-body.text-center
+            h6.text-muted Offline
+            h3#dashboardOffline.mb-0 --
+
+      .col-xl.col-lg-3.col-md-4.col-6
+        .card.border-info.shadow-sm.smartnode-dashboard-card#dashboardCardReachability(data-action='reachability', role='button', tabindex='0')
+          .card-body.text-center
+            h6.text-muted Reachability
+            h3#dashboardReachability.mb-0 --
+
+      .col-xl.col-lg-3.col-md-4.col-6
+        .card.border-danger.shadow-sm.smartnode-dashboard-card#dashboardCardPoseBanned(data-action='pose-banned', role='button', tabindex='0')
+          .card-body.text-center
+            h6.text-muted PoSe Banned
+            h3#dashboardPoseBanned.mb-0 --
+
+      .col-xl.col-lg-3.col-md-4.col-6
+        .card.border-warning.shadow-sm.smartnode-dashboard-card#dashboardCardLatency(data-action='latency', role='button', tabindex='0')
+          .card-body.text-center
+            h6.text-muted Avg Latency
+            h3#dashboardLatency.mb-0 --
+
+      .col-xl.col-lg-3.col-md-4.col-6
+        .card.border-warning.shadow-sm.smartnode-dashboard-card#dashboardCardPosePenalized(data-action='pose-penalized')
+          .card-body.text-center
+            h6.text-muted PoSe Penalized
+            h3#dashboardPosePenalized.mb-0 --
+
     .card.card-default.border-0.cardSpacer
       .card-header
         strong Smartnode List
@@ -288,16 +792,18 @@ block content
           - theadClasses.push('table-' + settings.shared_pages.table_header_bgcolor);
         thead
           tr(class=theadClasses)
-            th.text-center Pay rank
-            th.text-center Protocol
-            th.text-center IP address
-            th.text-center Wallet address
-            th.text-center Protocol
-            th.text-center Last seen
-            th.text-center Last paid
-            th.text-center Last paid block
-            th.text-center PoSe penalty
-            th.text-center PoSe ban height
-            th.text-center Active since
-            th.text-center Status
+            th Pay rank
+            th Network
+            th IP address
+            th Health
+            th(style='display:none') Latency
+            th Wallet address
+            th Protocol
+            th Last seen
+            th Last paid
+            th Last paid block
+            th PoSe penalty
+            th PoSe ban height
+            th Active since
+            th Status
         tbody.text-center

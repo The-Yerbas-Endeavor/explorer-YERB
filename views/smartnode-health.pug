@@ -47,7 +47,6 @@ block content
                   th Port
                   th Reachable
                   th Latency
-                  th Protocol
               tbody
                 each node in smartnodes
                   tr
@@ -62,10 +61,5 @@ block content
                     td
                       if node.latency_ms != null
                         | #{node.latency_ms} ms
-                      else
-                        | N/A
-                    td
-                      if node.protocol != null
-                        = node.protocol
                       else
                         | N/A

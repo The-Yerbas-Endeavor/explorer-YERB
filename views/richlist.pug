@@ -123,10 +123,12 @@ block content
                         td.text-center
                           =count
                         td
-                          if settings.claim_address_page.enabled == false || address.name == null || address.name == ''
-                            a.breakWord(href='/address/' + address.a_id) #{address.a_id}
-                          else
-                            a.breakWord(href='/address/' + address.a_id) #{address.name}
+                          - var displayName = address.a_id
+                          if (address.a_id == 'yYRDT2bovVEJrJ7BbcEXG3FCBwnYdX9Zg7')
+                            - displayName = 'Defunct XeggeX'
+                          else if (settings.claim_address_page.enabled == true && address.name != null && address.name != '')
+                            - displayName = address.name
+                          a.breakWord(href='/address/' + address.a_id)= displayName
                           include ./includes/rl_labels.pug
                         td.text-center #{itemFixedParts[0]}.
                           span.decimal #{itemFixedParts[1]}
@@ -153,10 +155,12 @@ block content
                         td.text-center
                           =count
                         td
-                          if settings.claim_address_page.enabled == false || address.name == null || address.name == ''
-                            a.breakWord(href='/address/' + address.a_id) #{address.a_id}
-                          else
-                            a.breakWord(href='/address/' + address.a_id) #{address.name}
+                          - var displayName = address.a_id
+                          if (address.a_id == 'yYRDT2bovVEJrJ7BbcEXG3FCBwnYdX9Zg7')
+                            - displayName = 'Defunct XeggeX'
+                          else if (settings.claim_address_page.enabled == true && address.name != null && address.name != '')
+                            - displayName = address.name
+                          a.breakWord(href='/address/' + address.a_id)= displayName
                           include ./includes/rl_labels.pug
                         td.text-center #{itemFixedParts[0]}.
                           span.decimal #{itemFixedParts[1]}

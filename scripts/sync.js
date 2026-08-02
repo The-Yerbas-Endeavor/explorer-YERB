@@ -492,41 +492,225 @@ if (lib.is_locked([database]) == false) {
           }
         });
       } else if (database == 'masternodes') {
+        console.log('1. Requesting smartnodelist...');
+
         lib.get_masternodelist(function(body) {
-          if (body != null) {
-            var isObject = false;
-            var objectKeys = null;
-
-            // Check if the masternode data is an array or an object
-            if (body.length == null) {
-              // Process data as an object
-              objectKeys = Object.keys(body);
-              isObject = true;
-            }
-
-            lib.syncLoop((isObject ? objectKeys : body).length, function(loop) {
-              var i = loop.iteration();
-
-              db.save_masternode((isObject ? body[objectKeys[i]] : body[i]), function(success) {
-                if (success)
-                  loop.next();
-                else {
-                  console.log('Error: Cannot save masternode %s.', (isObject ? (body[objectKeys[i]].payee ? body[objectKeys[i]].payee : 'UNKNOWN') : (body[i].addr ? body[i].addr : 'UNKNOWN')));
-                  exit(1);
-                }
-              });
-            }, function() {
-              db.remove_old_masternodes(function(cb) {
-                db.update_last_updated_stats(settings.coin.name, { masternodes_last_updated: Math.floor(Date.now() / 1000) }, function(cb) {
-                  console.log('Masternode sync complete');
-                  exit(0);
-                });
-              });
-            });
-          } else {
+         console.log('2. smartnodelist returned');
+          if (body == null) {
             console.log('No masternodes found');
             exit(2);
+            return;
           }
+
+      console.log('3. Requesting registered ProTx list...');
+
+      lib.get_registered_protx_list(function(protxList) {
+         console.log('4. registered ProTx list returned');
+            var protxByOutpoint = {};
+
+            if (Array.isArray(protxList)) {
+              protxList.forEach(function(protx) {
+                if (
+                  protx == null ||
+                  protx.collateralHash == null ||
+                  protx.collateralIndex == null
+                ) {
+                  return;
+                }
+
+                var protxOutpoint =
+                  protx.collateralHash +
+                  '-' +
+                  Number(protx.collateralIndex);
+
+                protxByOutpoint[protxOutpoint] = protx;
+              });
+            } else {
+              console.log(
+                'Warning: Unable to load registered ProTx list. ' +
+                'PoSe details will be unavailable.'
+              );
+            }
+
+      console.log(
+        '5. Built ProTx lookup:',
+        Object.keys(protxByOutpoint).length,
+        'entries'
+      );
+
+            var isObject = body.length == null;
+            var objectKeys = isObject
+              ? Object.keys(body)
+              : null;
+
+            var total = isObject
+              ? objectKeys.length
+              : body.length;
+
+           console.log(
+             '6. Beginning masternode sync:',
+             total,
+             'nodes'
+      );
+
+      lib.syncLoop(total, function(loop) {
+              var i = loop.iteration();
+
+              var outpoint = isObject
+                ? objectKeys[i]
+                : null;
+
+              var rawMasternode = isObject
+                ? body[outpoint]
+                : body[i];
+      if (i === 0) {
+         console.log(
+           '7. First node:',
+            outpoint,
+           rawMasternode && rawMasternode.status
+         );
+     }
+
+              if (rawMasternode == null) {
+                console.log(
+                  'Error: Empty masternode record at index %s.',
+                  i
+                );
+                exit(1);
+                return;
+              }
+
+              if (outpoint) {
+                var separator = outpoint.lastIndexOf('-');
+
+                if (separator > 0) {
+                  rawMasternode.txhash =
+                    outpoint.substring(0, separator);
+
+                  rawMasternode.outidx =
+                    Number(
+                      outpoint.substring(separator + 1)
+                    );
+                }
+              }
+
+              var protx = outpoint
+                ? protxByOutpoint[outpoint]
+                : null;
+
+              if (protx) {
+                var state = protx.state || {};
+
+                rawMasternode.proTxHash =
+                  protx.proTxHash || '';
+
+                rawMasternode.collateralHash =
+                  protx.collateralHash;
+
+                rawMasternode.collateralIndex =
+                  Number(protx.collateralIndex);
+
+                rawMasternode.collateralAddress =
+                  protx.collateralAddress || '';
+
+                rawMasternode.collateralAmount =
+                  protx.collateralAmount != null
+                    ? Number(protx.collateralAmount)
+                    : 0;
+
+                rawMasternode.state = state;
+
+                rawMasternode.PoSePenalty =
+                  state.PoSePenalty != null
+                    ? Number(state.PoSePenalty)
+                    : Number(
+                        rawMasternode.posePenalty || 0
+                      );
+
+                rawMasternode.PoSeBanHeight =
+                  state.PoSeBanHeight != null
+                    ? Number(state.PoSeBanHeight)
+                    : -1;
+
+                rawMasternode.PoSeRevivedHeight =
+                  state.PoSeRevivedHeight != null
+                    ? Number(state.PoSeRevivedHeight)
+                    : -1;
+
+                rawMasternode.registeredHeight =
+                  state.registeredHeight != null
+                    ? Number(state.registeredHeight)
+                    : Number(
+                        rawMasternode.registeredHeight || 0
+                      );
+
+                rawMasternode.lastPaidHeight =
+                  state.lastPaidHeight != null
+                    ? Number(state.lastPaidHeight)
+                    : Number(
+                        rawMasternode.lastpaidblock || 0
+                      );
+
+                rawMasternode.address =
+                  state.service ||
+                  rawMasternode.address ||
+                  rawMasternode.addr ||
+                  '';
+
+                rawMasternode.addr =
+                  rawMasternode.address;
+
+                rawMasternode.ip_address =
+                  rawMasternode.address;
+              }
+
+              console.log(
+               '8. Saving first node:',
+               rawMasternode.txhash,
+               rawMasternode.outidx,
+               rawMasternode.proTxHash
+             );
+
+             db.save_masternode(
+               rawMasternode,
+               function(success) {
+                 console.log(
+                   '9. Save callback returned:',
+                   success
+                  );
+
+                  if (success) {
+                  loop.next();
+                  } else {
+                    console.log(
+                      'Error: Cannot save masternode %s.',
+                      rawMasternode.payee ||
+                      rawMasternode.address ||
+                      outpoint ||
+                      'UNKNOWN'
+                    );
+                    exit(1);
+                  }
+                }
+              );
+            }, function() {
+              db.remove_old_masternodes(function() {
+                db.update_last_updated_stats(
+                  settings.coin.name,
+                  {
+                    masternodes_last_updated:
+                      Math.floor(Date.now() / 1000)
+                  },
+                  function() {
+                    console.log(
+                      'Masternode sync complete'
+                    );
+                    exit(0);
+                  }
+                );
+              });
+            });
+          });
         });
       } else {
         // check if market feature is enabled
@@ -634,3 +818,4 @@ if (lib.is_locked([database]) == false) {
   console.log("Sync aborted");
   exit(2);
 }
+
