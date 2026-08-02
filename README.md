@@ -285,17 +285,17 @@ The checker requires:
 Verify the Yerbas CLI path:
 
 ```bash
-/home/ex1/yerbas-build/yerbas-cli getblockcount
+/home/user/yerbas-build/yerbas-cli getblockcount
 ```
 
-Adjust `/home/ex1/yerbas-build/yerbas-cli` if Yerbas Core is installed elsewhere.
+Adjust `/home/user/yerbas-build/yerbas-cli` if Yerbas Core is installed elsewhere.
 
 ### Install the Checker
 
 Create a dedicated directory:
 
 ```bash
-cd /home/ex1
+cd /home/user
 git clone https://github.com/The-Yerbas-Endeavor/Yerbas-Smartnode-Check.git
 cd Yerbas-Smartnode-Check
 ```
@@ -309,15 +309,15 @@ chmod +x yerbas-smartnode-check.py
 Create the report and history directories:
 
 ```bash
-mkdir -p /home/ex1/smartnode-health/history
-chmod 755 /home/ex1/smartnode-health
-chmod 755 /home/ex1/smartnode-health/history
+mkdir -p /home/user/smartnode-health/history
+chmod 755 /home/user/smartnode-health
+chmod 755 /home/user/smartnode-health/history
 ```
 
 The checker user must have permission to create and replace files in this directory:
 
 ```bash
-chown -R ex1:ex1 /home/ex1/smartnode-health
+chown -R ex1:ex1 /home/user/smartnode-health
 ```
 
 Replace `ex1:ex1` with the Linux user and group that will run the checker.
@@ -327,28 +327,28 @@ Replace `ex1:ex1` with the Linux user and group that will run the checker.
 From the checker directory:
 
 ```bash
-cd /home/ex1/Yerbas-Smartnode-Check
+cd /home/user/Yerbas-Smartnode-Check
 
 ./yerbas-smartnode-check.py \
-  --cli /home/ex1/yerbas-build/yerbas-cli \
+  --cli /home/user/yerbas-build/yerbas-cli \
   --retries 2 \
   --reverse-dns \
   --minimum-protocol 70223 \
-  --json /home/ex1/smartnode-health/yerbas-smartnodes.json \
-  --history-dir /home/ex1/smartnode-health/history
+  --json /home/user/smartnode-health/yerbas-smartnodes.json \
+  --history-dir /home/user/smartnode-health/history
 ```
 
 A successful run creates:
 
 ```text
-/home/ex1/smartnode-health/yerbas-smartnodes.json
+/home/user/smartnode-health/yerbas-smartnodes.json
 ```
 
 Validate the generated report:
 
 ```bash
 python3 -m json.tool \
-  /home/ex1/smartnode-health/yerbas-smartnodes.json \
+  /home/user/smartnode-health/yerbas-smartnodes.json \
   >/dev/null &&
 echo "Smartnode health report is valid"
 ```
@@ -357,7 +357,7 @@ Inspect its summary:
 
 ```bash
 jq '.summary' \
-  /home/ex1/smartnode-health/yerbas-smartnodes.json
+  /home/user/smartnode-health/yerbas-smartnodes.json
 ```
 
 ### Schedule the Checker
@@ -371,7 +371,7 @@ crontab -e
 Run the checker every 15 minutes:
 
 ```cron
-*/15 * * * * cd /home/ex1/Yerbas-Smartnode-Check && /usr/bin/python3 ./yerbas-smartnode-check.py --cli /home/ex1/yerbas-build/yerbas-cli --retries 2 --reverse-dns --minimum-protocol 70223 --json /home/ex1/smartnode-health/yerbas-smartnodes.json --history-dir /home/ex1/smartnode-health/history >> /home/ex1/smartnode-health/checker.log 2>&1
+*/15 * * * * cd /home/user/Yerbas-Smartnode-Check && /usr/bin/python3 ./yerbas-smartnode-check.py --cli /home/user/yerbas-build/yerbas-cli --retries 2 --reverse-dns --minimum-protocol 70223 --json /home/user/smartnode-health/yerbas-smartnodes.json --history-dir /home/user/smartnode-health/history >> /home/user/smartnode-health/checker.log 2>&1
 ```
 
 Confirm the cron entry:
@@ -383,7 +383,7 @@ crontab -l
 Monitor checker output:
 
 ```bash
-tail -f /home/ex1/smartnode-health/checker.log
+tail -f /home/user/smartnode-health/checker.log
 ```
 
 ### Configure the Explorer
@@ -393,7 +393,7 @@ Add or update the following block in `settings.json`:
 ```json
 "smartnode_health_page": {
   "enabled": true,
-  "report_path": "/home/ex1/smartnode-health/yerbas-smartnodes.json",
+  "report_path": "/home/user/smartnode-health/yerbas-smartnodes.json",
   "max_report_age_minutes": 90,
   "public_api_enabled": true
 },
@@ -402,7 +402,7 @@ Add or update the following block in `settings.json`:
 The explorer settings file allows comments, so validate it with the same parser used by the application rather than `python3 -m json.tool`:
 
 ```bash
-cd /home/ex1/explorer-YERB
+cd /home/user/explorer-YERB
 
 node - <<'NODE'
 const fs = require('fs');
@@ -444,7 +444,7 @@ Confirm the report file can be read by the explorer user:
 
 ```bash
 ls -lh \
-  /home/ex1/smartnode-health/yerbas-smartnodes.json
+  /home/user/smartnode-health/yerbas-smartnodes.json
 ```
 
 The Smartnodes page should now display health information from the checker:
@@ -466,9 +466,9 @@ PermissionError: [Errno 13] Permission denied
 restore ownership and permissions:
 
 ```bash
-sudo mkdir -p /home/ex1/smartnode-health/history
-sudo chown -R ex1:ex1 /home/ex1/smartnode-health
-sudo chmod -R u+rwX,go+rX /home/ex1/smartnode-health
+sudo mkdir -p /home/user/smartnode-health/history
+sudo chown -R ex1:ex1 /home/user/smartnode-health
+sudo chmod -R u+rwX,go+rX /home/user/smartnode-health
 ```
 
 #### Explorer reports stale health data
@@ -477,8 +477,8 @@ Confirm the checker cron job is running:
 
 ```bash
 crontab -l
-stat /home/ex1/smartnode-health/yerbas-smartnodes.json
-tail -50 /home/ex1/smartnode-health/checker.log
+stat /home/user/smartnode-health/yerbas-smartnodes.json
+tail -50 /home/user/smartnode-health/checker.log
 ```
 
 The modification time of the JSON report should be newer than the configured `max_report_age_minutes`.
@@ -499,7 +499,7 @@ Restart PM2 after changing `settings.json`.
 Locate the binary:
 
 ```bash
-find /home/ex1 -type f -name yerbas-cli 2>/dev/null
+find /home/user -type f -name yerbas-cli 2>/dev/null
 ```
 
 Then update the checker command to use the returned absolute path.
