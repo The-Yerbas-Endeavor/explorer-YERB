@@ -1,0 +1,50 @@
+name: Run guarded node map patch
+
+on:
+  push:
+    branches:
+      - map
+    paths:
+      - .github/workflows/run-node-map-patch.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: map
+          fetch-depth: 0
+
+      - name: Apply guarded patch
+        run: python3 .github/scripts/apply_node_map.py
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate
+        run: |
+          node --check routes/index.js
+          node --check lib/settings.js
+          node - <<'NODE'
+          const pug = require('pug');
+          pug.compileFile('views/layout.pug');
+          pug.compileFile('views/node-map.pug');
+          console.log('Node map validation passed');
+          NODE
+
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo 'No changes needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/settings.js routes/index.js views/layout.pug views/node-map.pug
+          git commit -m 'Integrate network and Smartnode map'
+          git push origin map
