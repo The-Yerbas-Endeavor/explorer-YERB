@@ -1,0 +1,938 @@
+extends layout
+
+block content
+  include ./includes/common.pug
+
+  link(rel='stylesheet', href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css')
+  link(rel='stylesheet', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css')
+  link(rel='stylesheet', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css')
+
+  script(src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
+  script(src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js')
+
+  style.
+    #nodeMap {
+      position: relative;
+      width: 100%;
+      height: 72vh;
+      min-height: 600px;
+      max-height: 900px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, .12);
+      border-radius: .5rem;
+      background: #e9ecef;
+    }
+
+    .node-map-card {
+      height: 100%;
+    }
+
+    .node-map-card .card-body {
+      padding: .9rem .75rem;
+    }
+
+    .node-map-card h6 {
+      margin-bottom: .25rem;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    .node-map-card h3 {
+      font-size: 1.45rem;
+    }
+
+    .node-map-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .8rem 1rem;
+      align-items: center;
+      font-size: .85rem;
+    }
+
+    .node-map-legend-item {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .node-map-legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 5px;
+      border-radius: 50%;
+    }
+
+    .node-map-popup {
+      min-width: 245px;
+      max-width: 340px;
+    }
+
+    .node-map-popup h6 {
+      margin: 0 0 .45rem;
+    }
+
+    .node-map-popup-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .node-map-popup-table td {
+      padding: 3px 5px;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(0, 0, 0, .07);
+    }
+
+    .node-map-popup-table td:first-child {
+      color: #6c757d;
+      white-space: nowrap;
+    }
+
+    .node-map-popup-table td:last-child {
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .node-map-status {
+      min-height: 42px;
+    }
+
+    #nodeMap .leaflet-tile,
+    #nodeMap .leaflet-marker-icon,
+    #nodeMap .leaflet-marker-shadow {
+      max-width: none !important;
+      max-height: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    #nodeMap .leaflet-tile-pane img {
+      border: 0 !important;
+      box-shadow: none !important;
+    }
+
+    #nodeMap .leaflet-popup-content {
+      margin: 12px 14px;
+      color: #212529;
+    }
+
+    #nodeMap .leaflet-popup-content-wrapper,
+    #nodeMap .leaflet-popup-tip {
+      background: #fff;
+      color: #212529;
+    }
+
+    #nodeMap .leaflet-tooltip {
+      background: #fff;
+      color: #212529;
+      border: 1px solid rgba(0, 0, 0, .25);
+    }
+
+    #nodeMap .leaflet-control-attribution {
+      background: rgba(255, 255, 255, .92);
+      color: #212529;
+    }
+
+    #nodeMap .marker-cluster-small,
+    #nodeMap .marker-cluster-medium,
+    #nodeMap .marker-cluster-large {
+      background-color: rgba(25, 135, 84, .28);
+    }
+
+    #nodeMap .marker-cluster-small div,
+    #nodeMap .marker-cluster-medium div,
+    #nodeMap .marker-cluster-large div {
+      background-color: rgba(25, 135, 84, .82);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    @media (max-width: 767.98px) {
+      #nodeMap {
+        height: 68vh;
+        min-height: 480px;
+      }
+
+      .node-map-toolbar {
+        align-items: stretch !important;
+      }
+
+      .node-map-toolbar .btn-group {
+        width: 100%;
+      }
+
+      .node-map-toolbar .btn {
+        flex: 1 1 50%;
+      }
+    }
+
+  script.
+    var nodeMap = null;
+    var nodeLayer = null;
+    var activeNodeType = 'smartnodes';
+
+    var countryCoordinates = {
+      AD: [42.5462, 1.6016], AE: [23.4241, 53.8478], AF: [33.9391, 67.7100],
+      AL: [41.1533, 20.1683], AM: [40.0691, 45.0382], AO: [-11.2027, 17.8739],
+      AR: [-38.4161, -63.6167], AT: [47.5162, 14.5501], AU: [-25.2744, 133.7751],
+      AZ: [40.1431, 47.5769], BA: [43.9159, 17.6791], BD: [23.6850, 90.3563],
+      BE: [50.5039, 4.4699], BG: [42.7339, 25.4858], BH: [25.9304, 50.6378],
+      BO: [-16.2902, -63.5887], BR: [-14.2350, -51.9253], BY: [53.7098, 27.9534],
+      CA: [56.1304, -106.3468], CH: [46.8182, 8.2275], CL: [-35.6751, -71.5430],
+      CN: [35.8617, 104.1954], CO: [4.5709, -74.2973], CR: [9.7489, -83.7534],
+      CY: [35.1264, 33.4299], CZ: [49.8175, 15.4730], DE: [51.1657, 10.4515],
+      DK: [56.2639, 9.5018], DO: [18.7357, -70.1627], DZ: [28.0339, 1.6596],
+      EC: [-1.8312, -78.1834], EE: [58.5953, 25.0136], EG: [26.8206, 30.8025],
+      ES: [40.4637, -3.7492], FI: [61.9241, 25.7482], FR: [46.2276, 2.2137],
+      GB: [55.3781, -3.4360], GE: [42.3154, 43.3569], GR: [39.0742, 21.8243],
+      HK: [22.3193, 114.1694], HR: [45.1000, 15.2000], HU: [47.1625, 19.5033],
+      ID: [-0.7893, 113.9213], IE: [53.1424, -7.6921], IL: [31.0461, 34.8516],
+      IN: [20.5937, 78.9629], IS: [64.9631, -19.0208], IT: [41.8719, 12.5674],
+      JP: [36.2048, 138.2529], KE: [-0.0236, 37.9062], KR: [35.9078, 127.7669],
+      KZ: [48.0196, 66.9237], LT: [55.1694, 23.8813], LU: [49.8153, 6.1296],
+      LV: [56.8796, 24.6032], MA: [31.7917, -7.0926], MD: [47.4116, 28.3699],
+      ME: [42.7087, 19.3744], MK: [41.6086, 21.7453], MT: [35.9375, 14.3754],
+      MX: [23.6345, -102.5528], MY: [4.2105, 101.9758], NG: [9.0820, 8.6753],
+      NL: [52.1326, 5.2913], NO: [60.4720, 8.4689], NZ: [-40.9006, 174.8860],
+      PA: [8.5380, -80.7821], PE: [-9.1900, -75.0152], PH: [12.8797, 121.7740],
+      PK: [30.3753, 69.3451], PL: [51.9194, 19.1451], PT: [39.3999, -8.2245],
+      RO: [45.9432, 24.9668], RS: [44.0165, 21.0059], RU: [61.5240, 105.3188],
+      SA: [23.8859, 45.0792], SE: [60.1282, 18.6435], SG: [1.3521, 103.8198],
+      SI: [46.1512, 14.9955], SK: [48.6690, 19.6990], TH: [15.8700, 100.9925],
+      TR: [38.9637, 35.2433], TW: [23.6978, 120.9605], UA: [48.3794, 31.1656],
+      US: [39.8283, -98.5795], UY: [-32.5228, -55.7658], VE: [6.4238, -66.5897],
+      VN: [14.0583, 108.2772], ZA: [-30.5595, 22.9375]
+    };
+
+    function escapeHtml(value) {
+      return $('<div>').text(value == null ? '' : String(value)).html();
+    }
+
+    function firstValue() {
+      for (var i = 0; i < arguments.length; i++) {
+        if (
+          arguments[i] !== null &&
+          typeof arguments[i] !== 'undefined' &&
+          arguments[i] !== ''
+        ) {
+          return arguments[i];
+        }
+      }
+
+      return '';
+    }
+
+    function firstNumber() {
+      var value = firstValue.apply(null, arguments);
+      var number = Number(value);
+
+      return isNaN(number) ? 0 : number;
+    }
+
+    function normalizeStatus(node) {
+      return String(
+        firstValue(
+          node.smartnode_status,
+          node.status,
+          node.state,
+          'UNKNOWN'
+        )
+      ).toUpperCase();
+    }
+
+    function nodeState(node, type) {
+      if (type === 'network') {
+        return {
+          key: 'network',
+          label: 'Network node',
+          color: '#0d6efd'
+        };
+      }
+
+      var status = normalizeStatus(node);
+      var penalty = firstNumber(
+        node.pose_penalty,
+        node.PoSePenalty,
+        node.posePenalty
+      );
+      var banHeight = firstNumber(
+        node.pose_ban_height,
+        node.PoSeBanHeight,
+        node.poseBanHeight
+      );
+      var revivedHeight = firstNumber(
+        node.pose_revived_height,
+        node.PoSeRevivedHeight,
+        node.poseRevivedHeight
+      );
+      var latency = firstNumber(
+        node.latency_ms,
+        node.latency
+      );
+      var portOpen =
+        node.port_open === true ||
+        node.reachable === true;
+
+      var poseBanned =
+        status === 'POSE_BANNED' ||
+        (
+          banHeight > 0 &&
+          (
+            revivedHeight < 0 ||
+            revivedHeight < banHeight
+          )
+        );
+
+      if (poseBanned) {
+        return {
+          key: 'pose-banned',
+          label: 'PoSe Banned',
+          color: '#dc3545'
+        };
+      }
+
+      if (
+        node.port_open === false ||
+        node.reachable === false
+      ) {
+        return {
+          key: 'offline',
+          label: 'Offline',
+          color: '#212529'
+        };
+      }
+
+      if (penalty > 0) {
+        return {
+          key: 'penalized',
+          label: 'PoSe Penalized',
+          color: '#fd7e14'
+        };
+      }
+
+      if (portOpen && latency >= 150) {
+        return {
+          key: 'slow',
+          label: 'Slow',
+          color: '#ffc107'
+        };
+      }
+
+      if (portOpen) {
+        return {
+          key: 'online',
+          label: 'Online',
+          color: '#198754'
+        };
+      }
+
+      return {
+        key: 'unknown',
+        label: 'Unknown',
+        color: '#6c757d'
+      };
+    }
+
+    function coordinateForNode(node, type, duplicateIndex) {
+      var latitude = Number(node.latitude);
+      var longitude = Number(node.longitude);
+
+      if (
+        !isNaN(latitude) &&
+        !isNaN(longitude) &&
+        latitude >= -90 &&
+        latitude <= 90 &&
+        longitude >= -180 &&
+        longitude <= 180
+      ) {
+        if (duplicateIndex > 0) {
+          var angle = duplicateIndex * 1.7;
+          var radius = Math.min(.22, .012 * duplicateIndex);
+
+          latitude += Math.sin(angle) * radius;
+          longitude += Math.cos(angle) * radius;
+        }
+
+        return [latitude, longitude];
+      }
+
+      var countryCode = String(
+        firstValue(
+          node.country_code,
+          node.countryCode,
+          node.country_iso,
+          node.country_iso_code
+        )
+      ).toUpperCase();
+
+      if (type === 'network' && countryCoordinates[countryCode]) {
+        var base = countryCoordinates[countryCode];
+        var fallbackAngle = duplicateIndex * 1.5;
+        var fallbackRadius = Math.min(1.2, .12 + duplicateIndex * .025);
+
+        return [
+          base[0] + Math.sin(fallbackAngle) * fallbackRadius,
+          base[1] + Math.cos(fallbackAngle) * fallbackRadius
+        ];
+      }
+
+      return null;
+    }
+
+    function smartnodePopup(node, state) {
+      var endpoint = firstValue(
+        node.advertised_address,
+        node.address,
+        node.ip
+      );
+
+      var location = [
+        firstValue(node.city),
+        firstValue(node.country)
+      ].filter(Boolean).join(', ');
+
+      return (
+        '<div class="node-map-popup">' +
+          '<h6>Smartnode</h6>' +
+          '<table class="node-map-popup-table">' +
+            '<tr><td>Address</td><td>' +
+              escapeHtml(endpoint || 'Unknown') +
+            '</td></tr>' +
+            '<tr><td>Health</td><td>' +
+              escapeHtml(state.label) +
+            '</td></tr>' +
+            '<tr><td>Status</td><td>' +
+              escapeHtml(normalizeStatus(node)) +
+            '</td></tr>' +
+            '<tr><td>Latency</td><td>' +
+              escapeHtml(
+                node.latency_ms == null
+                  ? '—'
+                  : Math.round(Number(node.latency_ms)) + ' ms'
+              ) +
+            '</td></tr>' +
+            '<tr><td>PoSe penalty</td><td>' +
+              escapeHtml(
+                firstNumber(
+                  node.pose_penalty,
+                  node.PoSePenalty,
+                  node.posePenalty
+                )
+              ) +
+            '</td></tr>' +
+            '<tr><td>Location</td><td>' +
+              escapeHtml(location || 'Unknown') +
+            '</td></tr>' +
+            '<tr><td>Provider</td><td>' +
+              escapeHtml(
+                firstValue(
+                  node.organization,
+                  node.isp,
+                  '—'
+                )
+              ) +
+            '</td></tr>' +
+            '<tr><td>ASN</td><td>' +
+              escapeHtml(
+                node.asn == null
+                  ? '—'
+                  : 'AS' + node.asn
+              ) +
+            '</td></tr>' +
+          '</table>' +
+          '<div class="small text-muted mt-2">' +
+            'Approximate location based on IP geolocation.' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function networkPopup(node) {
+      var location = [
+        firstValue(node.city),
+        firstValue(node.country)
+      ].filter(Boolean).join(', ');
+
+      return (
+        '<div class="node-map-popup">' +
+          '<h6>Network Node</h6>' +
+          '<table class="node-map-popup-table">' +
+            '<tr><td>Address</td><td>' +
+              escapeHtml(
+                firstValue(
+                  node.address,
+                  node.ip,
+                  'Unknown'
+                )
+              ) +
+            '</td></tr>' +
+            '<tr><td>Port</td><td>' +
+              escapeHtml(firstValue(node.port, '—')) +
+            '</td></tr>' +
+            '<tr><td>Protocol</td><td>' +
+              escapeHtml(firstValue(node.protocol, '—')) +
+            '</td></tr>' +
+            '<tr><td>Version</td><td>' +
+              escapeHtml(firstValue(node.version, '—')) +
+            '</td></tr>' +
+            '<tr><td>Location</td><td>' +
+              escapeHtml(location || 'Unknown') +
+            '</td></tr>' +
+          '</table>' +
+          '<div class="small text-muted mt-2">' +
+            'Approximate location based on available GeoIP data.' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function setActiveButton(type) {
+      $('#showNetworkNodes, #showSmartnodes')
+        .removeClass('btn-primary')
+        .addClass('btn-outline-primary');
+
+      if (type === 'network') {
+        $('#showNetworkNodes')
+          .removeClass('btn-outline-primary')
+          .addClass('btn-primary');
+      } else {
+        $('#showSmartnodes')
+          .removeClass('btn-outline-primary')
+          .addClass('btn-primary');
+      }
+    }
+
+    function updateSummary(summary, type, nodes, counts) {
+      $('#mapTotalNodes').text(
+        Number(
+          firstValue(
+            summary.total,
+            nodes.length,
+            0
+          )
+        ).toLocaleString()
+      );
+
+      $('#mapCountries').text(
+        Number(
+          firstValue(
+            summary.countries,
+            counts.countries,
+            0
+          )
+        ).toLocaleString()
+      );
+
+      $('#mapReachable').text(
+        type === 'smartnodes'
+          ? Number(
+              firstValue(
+                summary.reachable,
+                counts.reachable,
+                0
+              )
+            ).toLocaleString()
+          : '—'
+      );
+
+      $('#mapOffline').text(
+        type === 'smartnodes'
+          ? Number(
+              firstValue(
+                summary.unreachable,
+                counts.offline,
+                0
+              )
+            ).toLocaleString()
+          : '—'
+      );
+
+      $('#mapPoseBanned').text(
+        type === 'smartnodes'
+          ? Number(
+              firstValue(
+                summary.pose_banned,
+                summary.statuses &&
+                summary.statuses.POSE_BANNED,
+                counts.poseBanned,
+                0
+              )
+            ).toLocaleString()
+          : '—'
+      );
+
+      $('#mapPlotted').text(
+        Number(counts.plotted).toLocaleString()
+      );
+    }
+
+    function renderNodes(payload, type) {
+      var nodes =
+        payload && Array.isArray(payload.nodes)
+          ? payload.nodes
+          : (
+              payload &&
+              Array.isArray(payload.smartnodes)
+                ? payload.smartnodes
+                : []
+            );
+
+      var summary =
+        payload && payload.summary
+          ? payload.summary
+          : {};
+
+      var counts = {
+        plotted: 0,
+        countries: 0,
+        reachable: 0,
+        offline: 0,
+        poseBanned: 0,
+        penalized: 0,
+        slow: 0,
+        unknown: 0
+      };
+
+      var countries = {};
+      var coordinateCounts = {};
+
+      if (nodeLayer) {
+        nodeLayer.clearLayers();
+      }
+
+      nodes.forEach(function(node) {
+        var rawLatitude = Number(node.latitude);
+        var rawLongitude = Number(node.longitude);
+        var coordinateKey =
+          !isNaN(rawLatitude) && !isNaN(rawLongitude)
+            ? rawLatitude.toFixed(3) + ',' + rawLongitude.toFixed(3)
+            : String(
+                firstValue(
+                  node.country_code,
+                  node.countryCode,
+                  'unknown'
+                )
+              ).toUpperCase();
+
+        coordinateCounts[coordinateKey] =
+          (coordinateCounts[coordinateKey] || 0) + 1;
+
+        var coordinate = coordinateForNode(
+          node,
+          type,
+          coordinateCounts[coordinateKey] - 1
+        );
+
+        if (!coordinate)
+          return;
+
+        var state = nodeState(node, type);
+        var popup =
+          type === 'smartnodes'
+            ? smartnodePopup(node, state)
+            : networkPopup(node);
+
+        var marker = L.circleMarker(
+          coordinate,
+          {
+            radius: 6,
+            color: state.color,
+            fillColor: state.color,
+            fillOpacity: .78,
+            weight: 2
+          }
+        );
+
+        marker.bindTooltip(
+          escapeHtml(
+            firstValue(
+              node.city,
+              node.country,
+              node.ip,
+              state.label
+            )
+          ),
+          {
+            direction: 'top',
+            sticky: true
+          }
+        );
+
+        marker.bindPopup(
+          popup,
+          {
+            maxWidth: 360
+          }
+        );
+
+        nodeLayer.addLayer(marker);
+        counts.plotted++;
+
+        var countryCode = String(
+          firstValue(
+            node.country_code,
+            node.countryCode,
+            ''
+          )
+        ).toUpperCase();
+
+        if (countryCode)
+          countries[countryCode] = true;
+
+        if (state.key === 'online')
+          counts.reachable++;
+        else if (state.key === 'slow') {
+          counts.reachable++;
+          counts.slow++;
+        } else if (state.key === 'penalized') {
+          counts.reachable++;
+          counts.penalized++;
+        } else if (state.key === 'offline')
+          counts.offline++;
+        else if (state.key === 'pose-banned')
+          counts.poseBanned++;
+        else if (state.key === 'unknown')
+          counts.unknown++;
+      });
+
+      counts.countries = Object.keys(countries).length;
+
+      updateSummary(
+        summary,
+        type,
+        nodes,
+        counts
+      );
+
+      $('#mapStatus')
+        .removeClass(
+          'alert-danger alert-warning'
+        )
+        .addClass('alert-info')
+        .text(
+          counts.plotted.toLocaleString() +
+          ' of ' +
+          nodes.length.toLocaleString() +
+          ' nodes plotted across ' +
+          counts.countries.toLocaleString() +
+          ' countries.'
+        );
+
+      if (counts.plotted > 0) {
+        var bounds = nodeLayer.getBounds();
+
+        if (bounds && bounds.isValid()) {
+          nodeMap.fitBounds(
+            bounds.pad(.08),
+            {
+              maxZoom: 6
+            }
+          );
+        }
+      } else {
+        nodeMap.setView([25, 0], 2);
+      }
+
+      setTimeout(function() {
+        nodeMap.invalidateSize(true);
+      }, 150);
+    }
+
+    function loadNodeType(type) {
+      activeNodeType = type;
+      setActiveButton(type);
+
+      $('#mapStatus')
+        .removeClass(
+          'alert-danger alert-warning'
+        )
+        .addClass('alert-info')
+        .text(
+          'Loading ' +
+          (
+            type === 'network'
+              ? 'network nodes'
+              : 'Smartnodes'
+          ) +
+          '...'
+        );
+
+      $.getJSON(
+        '/ext/getnodemap?type=' +
+        encodeURIComponent(type)
+      )
+        .done(function(payload) {
+          renderNodes(payload, type);
+        })
+        .fail(function(xhr) {
+          var message =
+            xhr.responseJSON &&
+            xhr.responseJSON.error
+              ? xhr.responseJSON.error
+              : (
+                  'Unable to load node map data' +
+                  (
+                    xhr.status
+                      ? ' (HTTP ' + xhr.status + ')'
+                      : ''
+                  )
+                );
+
+          $('#mapStatus')
+            .removeClass(
+              'alert-info alert-warning'
+            )
+            .addClass('alert-danger')
+            .text(message);
+
+          if (nodeLayer)
+            nodeLayer.clearLayers();
+        });
+    }
+
+    $(document).ready(function() {
+      if (typeof L === 'undefined') {
+        $('#mapStatus')
+          .removeClass('alert-info')
+          .addClass('alert-danger')
+          .text('Leaflet failed to load.');
+
+        return;
+      }
+
+      nodeMap = L.map(
+        'nodeMap',
+        {
+          minZoom: 2,
+          maxZoom: 12,
+          worldCopyJump: true,
+          preferCanvas: true,
+          zoomControl: true
+        }
+      ).setView([25, 0], 2);
+
+      L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          maxZoom: 19,
+          attribution:
+            '&copy; OpenStreetMap contributors'
+        }
+      ).addTo(nodeMap);
+
+      nodeLayer = L.markerClusterGroup({
+        showCoverageOnHover: false,
+        spiderfyOnMaxZoom: true,
+        disableClusteringAtZoom: 8,
+        maxClusterRadius: 48,
+        chunkedLoading: true,
+        chunkInterval: 100,
+        chunkDelay: 30
+      });
+
+      nodeMap.addLayer(nodeLayer);
+
+      $('#showNetworkNodes').on(
+        'click',
+        function() {
+          loadNodeType('network');
+        }
+      );
+
+      $('#showSmartnodes').on(
+        'click',
+        function() {
+          loadNodeType('smartnodes');
+        }
+      );
+
+      $(window).on(
+        'resize',
+        function() {
+          if (nodeMap)
+            nodeMap.invalidateSize(false);
+        }
+      );
+
+      setTimeout(function() {
+        nodeMap.invalidateSize(true);
+      }, 250);
+
+      loadNodeType(activeNodeType);
+    });
+
+  .col-md-12.cardSpacer
+    .container-fluid
+      #page-header-container
+        #page-title-container
+          h3#page-title #{settings.coin.name} Network Map
+          .sub-page-header.text-muted View known network peers and registered Smartnodes around the world.
+
+      .cardSpacer.clearfix
+
+      .node-map-toolbar.d-flex.flex-wrap.justify-content-between.align-items-center.gap-3.mb-3
+        .btn-group(role='group', aria-label='Node map layer')
+          button.btn.btn-outline-primary#showNetworkNodes(type='button') Network Nodes
+          button.btn.btn-primary#showSmartnodes(type='button') Smartnodes
+
+        .node-map-legend
+          span.node-map-legend-item
+            span.node-map-legend-dot(style='background:#0d6efd')
+            | Network
+          span.node-map-legend-item
+            span.node-map-legend-dot(style='background:#198754')
+            | Online
+          span.node-map-legend-item
+            span.node-map-legend-dot(style='background:#ffc107')
+            | Slow
+          span.node-map-legend-item
+            span.node-map-legend-dot(style='background:#fd7e14')
+            | Penalized
+          span.node-map-legend-item
+            span.node-map-legend-dot(style='background:#212529')
+            | Offline
+          span.node-map-legend-item
+            span.node-map-legend-dot(style='background:#dc3545')
+            | PoSe Banned
+
+      .row.g-2.mb-3
+        .col-xl-2.col-md-4.col-6.mb-2
+          .card.border-primary.node-map-card
+            .card-body.text-center
+              h6.text-muted Total Nodes
+              h3#mapTotalNodes.mb-0 --
+
+        .col-xl-2.col-md-4.col-6.mb-2
+          .card.border-info.node-map-card
+            .card-body.text-center
+              h6.text-muted Countries
+              h3#mapCountries.mb-0 --
+
+        .col-xl-2.col-md-4.col-6.mb-2
+          .card.border-success.node-map-card
+            .card-body.text-center
+              h6.text-muted Reachable
+              h3#mapReachable.mb-0 --
+
+        .col-xl-2.col-md-4.col-6.mb-2
+          .card.border-dark.node-map-card
+            .card-body.text-center
+              h6.text-muted Offline
+              h3#mapOffline.mb-0 --
+
+        .col-xl-2.col-md-4.col-6.mb-2
+          .card.border-danger.node-map-card
+            .card-body.text-center
+              h6.text-muted PoSe Banned
+              h3#mapPoseBanned.mb-0 --
+
+        .col-xl-2.col-md-4.col-6.mb-2
+          .card.border-secondary.node-map-card
+            .card-body.text-center
+              h6.text-muted Plotted
+              h3#mapPlotted.mb-0 --
+
+      .alert.alert-info.node-map-status#mapStatus(role='status') Loading Smartnodes...
+      #nodeMap
+      p.small.text-muted.mt-2.mb-0 Node locations are approximate and derived from IP geolocation. Exact operator locations are not exposed.

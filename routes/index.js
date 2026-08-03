@@ -392,6 +392,126 @@ router.get('/network', function(req, res) {
   }
 });
 
+// node map page and data API
+router.get('/node-map', function(req, res) {
+  if (
+    settings.node_map_page &&
+    settings.node_map_page.enabled === true
+  ) {
+    return res.render('node-map', {
+      active: 'node-map',
+      showSync: db.check_show_sync_message(),
+      styleHash: get_file_timestamp('./public/css/style.scss'),
+      themeHash: get_file_timestamp(
+        './public/css/themes/' +
+        settings.shared_pages.theme.toLowerCase() +
+        '/bootstrap.min.css'
+      ),
+      page_title_prefix: settings.coin.name + ' Node Map'
+    });
+  }
+
+  return route_get_index(res, null);
+});
+
+router.get('/ext/getnodemap', function(req, res) {
+  if (
+    !settings.node_map_page ||
+    settings.node_map_page.enabled !== true
+  ) {
+    return res.status(404).json({
+      error: 'Node map is disabled'
+    });
+  }
+
+  var type = String(req.query.type || 'smartnodes').toLowerCase();
+
+  if (type === 'network') {
+    if (settings.node_map_page.show_network_nodes === false) {
+      return res.status(404).json({
+        error: 'Network node map is disabled'
+      });
+    }
+
+    var Peers = require('../models/peers');
+
+    return Peers.find({}).lean().exec(function(err, peers) {
+      if (err) {
+        return res.status(500).json({
+          error: 'Unable to load network peers'
+        });
+      }
+
+      peers = Array.isArray(peers) ? peers : [];
+
+      var countries = {};
+      peers.forEach(function(peer) {
+        var code = String(peer.country_code || '').toUpperCase();
+        if (code)
+          countries[code] = true;
+      });
+
+      return res.json({
+        type: 'network',
+        summary: {
+          total: peers.length,
+          countries: Object.keys(countries).length
+        },
+        nodes: peers
+      });
+    });
+  }
+
+  if (type !== 'smartnodes') {
+    return res.status(400).json({
+      error: 'Invalid node map type'
+    });
+  }
+
+  if (settings.node_map_page.show_smartnodes === false) {
+    return res.status(404).json({
+      error: 'Smartnode map is disabled'
+    });
+  }
+
+  if (
+    !settings.smartnode_health_page ||
+    settings.smartnode_health_page.enabled !== true
+  ) {
+    return res.status(503).json({
+      error: 'Smartnode Health is not enabled'
+    });
+  }
+
+  return smartnodeHealth.loadReport(
+    settings.smartnode_health_page,
+    function(err, report) {
+      if (err) {
+        return res.status(err.status || 503).json({
+          error: err.message || 'Smartnode Health report is unavailable'
+        });
+      }
+
+      var summary = Object.assign({}, report.summary || {});
+      var statuses = summary.statuses || {};
+
+      if (summary.pose_banned == null)
+        summary.pose_banned = Number(statuses.POSE_BANNED || 0);
+
+      return res.json({
+        type: 'smartnodes',
+        generated_at: report.generated_at || null,
+        report_age_minutes: report.report_age_minutes,
+        report_stale: report.report_stale,
+        summary: summary,
+        nodes: Array.isArray(report.smartnodes)
+          ? report.smartnodes
+          : []
+      });
+    }
+  );
+});
+
 // masternode list page
 router.get('/masternodes', function(req, res) {
   // ensure masternode page is enabled

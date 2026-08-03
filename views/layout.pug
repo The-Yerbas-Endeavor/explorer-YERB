@@ -660,21 +660,25 @@ html(lang='en')
                   a.nav-link(href='/masternodes')
                     span.fa.fa-share-alt
                     span.margin-left-5 Smartnodes
-              if settings.movement_page.enabled == true
-                li#movement.nav-item
-                  a.nav-link(href='/movement')
-                    span.far.fa-money-bill-alt
-                    span.margin-left-5 #{settings.locale.menu_movement}
               if settings.network_page.enabled == true
                 li#network.nav-item
                   a.nav-link(href='/network')
                     span.fas.fa-network-wired
                     span.margin-left-5 #{settings.locale.menu_network}
+                li#node-map.nav-item
+                  a.nav-link(href='/node-map')
+                    span.fas.fa-globe-americas
+                    span.margin-left-5 Network Map
               if settings.richlist_page.enabled == true
                 li#richlist.nav-item
                   a.nav-link(href='/richlist')
                     span.fab.fa-btc
                     span.margin-left-5 #{settings.locale.menu_richlist}
+              if settings.movement_page.enabled == true
+                li#movement.nav-item
+                  a.nav-link(href='/movement')
+                    span.far.fa-money-bill-alt
+                    span.margin-left-5 #{settings.locale.menu_movement}
               if settings.markets_page.enabled == true
                 if settings.markets_page.show_market_dropdown_menu == true && settings.market_count > 1
                   li#markets.dropdown.nav-item

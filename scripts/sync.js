@@ -492,20 +492,18 @@ if (lib.is_locked([database]) == false) {
           }
         });
       } else if (database == 'masternodes') {
-        console.log('1. Requesting smartnodelist...');
+        console.log('Loading smartnode list...');
 
         lib.get_masternodelist(function(body) {
-         console.log('2. smartnodelist returned');
           if (body == null) {
-            console.log('No masternodes found');
+            console.log('No smartnodes found');
             exit(2);
             return;
           }
 
-      console.log('3. Requesting registered ProTx list...');
+          console.log('Loading registered ProTx records...');
 
-      lib.get_registered_protx_list(function(protxList) {
-         console.log('4. registered ProTx list returned');
+          lib.get_registered_protx_list(function(protxList) {
             var protxByOutpoint = {};
 
             if (Array.isArray(protxList)) {
@@ -532,11 +530,9 @@ if (lib.is_locked([database]) == false) {
               );
             }
 
-      console.log(
-        '5. Built ProTx lookup:',
-        Object.keys(protxByOutpoint).length,
-        'entries'
-      );
+            console.log(
+              `Loaded ${Object.keys(protxByOutpoint).length} registered ProTx entries`
+            );
 
             var isObject = body.length == null;
             var objectKeys = isObject
@@ -547,13 +543,17 @@ if (lib.is_locked([database]) == false) {
               ? objectKeys.length
               : body.length;
 
-           console.log(
-             '6. Beginning masternode sync:',
-             total,
-             'nodes'
-      );
+                       let processedNodes = 0;
+            let savedNodes = 0;
+            let failedNodes = 0;
+            const totalNodes = total;
+            const syncStartedAt = Date.now();
 
-      lib.syncLoop(total, function(loop) {
+            console.log(
+              `Smartnode sync started: ${totalNodes} nodes received from RPC`
+            );
+
+            lib.syncLoop(totalNodes, function(loop) {
               var i = loop.iteration();
 
               var outpoint = isObject
@@ -563,13 +563,6 @@ if (lib.is_locked([database]) == false) {
               var rawMasternode = isObject
                 ? body[outpoint]
                 : body[i];
-      if (i === 0) {
-         console.log(
-           '7. First node:',
-            outpoint,
-           rawMasternode && rawMasternode.status
-         );
-     }
 
               if (rawMasternode == null) {
                 console.log(
@@ -664,35 +657,41 @@ if (lib.is_locked([database]) == false) {
                   rawMasternode.address;
               }
 
-              console.log(
-               '8. Saving first node:',
-               rawMasternode.txhash,
-               rawMasternode.outidx,
-               rawMasternode.proTxHash
-             );
+                            db.save_masternode(
+                rawMasternode,
+                function(success) {
 
-             db.save_masternode(
-               rawMasternode,
-               function(success) {
-                 console.log(
-                   '9. Save callback returned:',
-                   success
-                  );
+                  processedNodes++;
 
-                  if (success) {
-                  loop.next();
+                  if (success === true) {
+                    savedNodes++;
                   } else {
-                    console.log(
-                      'Error: Cannot save masternode %s.',
-                      rawMasternode.payee ||
-                      rawMasternode.address ||
-                      outpoint ||
-                      'UNKNOWN'
+                    failedNodes++;
+
+                    console.error(
+                      `Failed to save smartnode: ${
+                        rawMasternode.txhash || 'unknown'
+                      }-${rawMasternode.outidx ?? 'unknown'}`
                     );
+
                     exit(1);
+                    return;
                   }
+
+                  if (
+                    processedNodes % 25 === 0 ||
+                    processedNodes === totalNodes
+                  ) {
+                    console.log(
+                      `Smartnode sync progress: ${processedNodes}/${totalNodes} processed, ` +
+                      `${savedNodes} saved, ${failedNodes} failed`
+                    );
+                  }
+
+                  loop.next();
                 }
               );
+
             }, function() {
               db.remove_old_masternodes(function() {
                 db.update_last_updated_stats(
@@ -702,8 +701,12 @@ if (lib.is_locked([database]) == false) {
                       Math.floor(Date.now() / 1000)
                   },
                   function() {
+                    const elapsedSeconds =
+                      ((Date.now() - syncStartedAt) / 1000).toFixed(1);
+
                     console.log(
-                      'Masternode sync complete'
+                      `Smartnode sync complete: ${savedNodes}/${totalNodes} saved, ` +
+                      `${failedNodes} failed in ${elapsedSeconds}s`
                     );
                     exit(0);
                   }

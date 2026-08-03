@@ -700,6 +700,72 @@
     }
   },
 
+
+  "node_map_page": {
+   // Enable or disable the Network Map page
+   "enabled": true,
+
+   // Default map view when the page first loads.
+   // Options: "smartnodes" or "network"
+   "default_view": "smartnodes",
+
+   // Group nearby markers into clusters when zoomed out
+   "cluster_markers": true,
+
+   // Enable the Network Nodes layer
+   "show_network_nodes": true,
+
+   // Enable the Smartnodes layer
+   "show_smartnodes": true,
+
+   // Display the number of unique countries represented
+   "show_country_counts": true,
+
+   // Show Autonomous System Number (ASN) in node popups
+   "show_asn": true,
+
+   // Show hosting provider / ISP in node popups
+   "show_provider": true,
+
+   // Show city (approximate GeoIP location) in node popups
+   "show_city": true,
+
+   // Display Offline Smartnodes
+   "show_offline": true,
+
+   // Display PoSe Penalized Smartnodes
+   "show_penalized": true,
+
+   // Display PoSe Banned Smartnodes
+   "show_pose_banned": true,
+
+   // Enable marker popups with detailed node information
+   "show_popups": true,
+
+   // Display summary statistic cards above the map
+   "show_summary_cards": true,
+
+   // Display the map legend
+   "show_legend": true,
+
+   // Use GeoIP latitude/longitude for plotting node locations
+   "enable_geoip": true,
+
+   // Initial zoom level when the map loads
+   "default_zoom": 2,
+
+   // Maximum zoom level allowed
+   "max_zoom": 12,
+
+   // Automatically refresh node data every N seconds.
+   // Set to 0 to disable automatic refresh.
+   "refresh_interval": 300,
+
+   // Background map tile provider.
+   // Current: OpenStreetMap
+   "tile_provider": "OpenStreetMap"
+   },
+
   // richlist_page: a collection of settings that pertain to the richlist/top100 page
   "richlist_page": {
     // enabled: Enable/disable the richlist/top100 page (true/false)
