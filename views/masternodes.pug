@@ -60,14 +60,15 @@ block content
           url: '/ext/getmasternodelist',
           dataSrc: function(json) {
             for (i = 0; i < json.length; i++) {
-    var addr = json[i]['addr'] || '';
+              var addr = json[i]['addr'] || '';
 
-    if (
-      json[i]['ip_address'] == null ||
-      json[i]['ip_address'] == ''
-    ) {
-      json[i]['ip_address'] = addr;
-    }
+              if (
+                json[i]['ip_address'] == null ||
+                json[i]['ip_address'] == ''
+              ) {
+                json[i]['ip_address'] = addr;
+              }
+
               json[i]['lastseen'] = '<span' + (#{settings.shared_pages.date_time.enable_alt_timezone_tooltips} == true ? ' data-bs-toggle="tooltip" data-bs-placement="auto" title="' + format_unixtime(json[i]['lastseen'], true) + '"' : '') + '>' + format_unixtime(json[i]['lastseen']) + '</span>';
 
               if (typeof json[i]['lastpaid'] != 'undefined' && json[i]['lastpaid'] != '' && json[i]['lastpaid'] != '0')
@@ -83,7 +84,7 @@ block content
               var walletAddress =
                 json[i]['payoutAddress'] ||
                 json[i]['collateralAddress'] ||
-    json[i]['ownerAddress'] ||
+                json[i]['ownerAddress'] ||
                 '';
 
               if (walletAddress != '') {
@@ -119,6 +120,7 @@ block content
               json[i]['pose_is_banned'] =
                 poseBanHeight > 0 &&
                 poseRevivedHeight < poseBanHeight;
+
               if (labels[addr] != null && labels[addr].enabled == true) {
                 if (labels[addr].type)
                   json[i]['addr'] = '<div><label class="badge bg-' + labels[addr].type + '" style="margin-bottom:10px;">' + labels[addr].label + (labels[addr].url ? '<a href="' + labels[addr].url + '" target="_blank", alt="Visit site", title="Visit site" data-bs-toggle="tooltip" data-bs-placement="top"><span class="fa fa-question-circle" style="margin-left:5px"></span></a>' : '') + '</label></div>' + json[i]['addr'];
@@ -167,25 +169,28 @@ block content
             }
           },
           {
-            name: 'poseBanHeight',
-            data: 'poseBanHeight',
-            className: 'poseBanHeightCol',
-            defaultContent: -1,
+            name: 'collateralAmount',
+            data: 'collateralAmount',
+            className: 'collateralAmountCol',
+            defaultContent: 0,
             render: function(data, type, row) {
-              var banHeight = firstNumber(
+              var collateral = firstNumber(
                 data,
-                row['pose_ban_height'],
-                row['PoSeBanHeight'],
-                row['poseBanHeight']
+                row['collateralAmount'],
+                row['collateralamount'],
+                row['collateral_amount']
               );
 
               if (type === 'sort' || type === 'type')
-                return banHeight;
+                return collateral;
 
-              if (row['pose_is_banned'])
-                return '<span class="badge bg-danger">' + banHeight + '</span>';
+              if (collateral <= 0)
+                return '<em>N/A</em>';
 
-              return '<span class="text-muted">&mdash;</span>';
+              return collateral.toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 8
+              }) + ' YERB';
             }
           },
           { name: 'activetime', data: 'activetime', className: "activeTimeCol" },
@@ -232,7 +237,7 @@ block content
             ctable.api().column('ip_address:name').visible(useNewDashFormat, false);
             ctable.api().column('last_paid_block:name').visible(useNewDashFormat, false);
             ctable.api().column('posePenalty:name').visible(useNewDashFormat, false);
-            ctable.api().column('poseBanHeight:name').visible(useNewDashFormat);
+            ctable.api().column('collateralAmount:name').visible(useNewDashFormat);
           }, 0);
         }
       });
@@ -297,7 +302,7 @@ block content
             th.text-center Last paid
             th.text-center Last paid block
             th.text-center PoSe penalty
-            th.text-center PoSe ban height
+            th.text-center Collateral
             th.text-center Active since
             th.text-center Status
         tbody.text-center
