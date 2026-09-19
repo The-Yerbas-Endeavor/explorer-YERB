@@ -15,6 +15,7 @@ var express = require('express'),
     locale = require('./lib/locale'),
     request = require('postman-request');
 var app = express();
+app.locals.yerbasAiEnabled = String(process.env.YERBAS_AI_ENABLED || '').toLowerCase() === 'true';
 var apiAccessList = [];
 const { exec } = require('child_process');
 
