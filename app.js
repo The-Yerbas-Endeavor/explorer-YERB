@@ -8,12 +8,14 @@ var express = require('express'),
     settings = require('./lib/settings'),
     routes = require('./routes/index'),
     assetRoutes = require('./routes/assets'),
+    aiRoutes = require('./routes/ai'),
     lib = require('./lib/explorer'),
     db = require('./lib/database'),
     package_metadata = require('./package.json'),
     locale = require('./lib/locale'),
     request = require('postman-request');
 var app = express();
+app.locals.yerbasAiEnabled = String(process.env.YERBAS_AI_ENABLED || '').toLowerCase() === 'true';
 var apiAccessList = [];
 const { exec } = require('child_process');
 
@@ -60,6 +62,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // routes
 app.use('/api', nodeapi.app);
 app.use('/', assetRoutes);
+app.use('/', aiRoutes);
 app.use('/', routes);
 
 // post method to claim an address using verifymessage functionality

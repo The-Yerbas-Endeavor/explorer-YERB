@@ -660,6 +660,11 @@ html(lang='en')
                   a.nav-link(href='/masternodes')
                     span.fa.fa-share-alt
                     span.margin-left-5 Smartnodes
+              if yerbasAiEnabled == true
+                li#ai.nav-item
+                  a.nav-link(href='/ask')
+                    span.fas.fa-comment-dots
+                    span.margin-left-5 Ask Yerbas
               if settings.movement_page.enabled == true
                 li#movement.nav-item
                   a.nav-link(href='/movement')

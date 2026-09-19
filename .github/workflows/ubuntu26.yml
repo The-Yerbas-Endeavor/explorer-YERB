@@ -24,8 +24,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         shell: bash
@@ -37,15 +35,19 @@ jobs:
             npm install --package-lock=true
           fi
 
-      - name: Run tests
-        run: npm test
-
       - name: Verify application startup files
         run: |
           node --check ./bin/cluster
           node --check ./bin/instance
           node --check ./app.js
+          node --check ./lib/yerbas-ai.js
+          node --check ./routes/ai.js
           node --check ./scripts/prestart.js
+          node -e "require('pug').compileFile('./views/ai.pug')"
+
+
+      - name: Run tests
+        run: npm test
 
       - name: Validate installer shell syntax
         run: bash -n ./install-ubuntu26.sh

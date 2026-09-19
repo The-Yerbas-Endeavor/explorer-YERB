@@ -1,0 +1,125 @@
+extends layout
+
+block content
+  include ./includes/common.pug
+
+  .col-md-12.cardSpacer
+    .card
+      .card-body
+        .d-flex.flex-wrap.justify-content-between.align-items-center.mb-3
+          div
+            h2.mb-1
+              span.fas.fa-seedling.me-2
+              | Ask Yerbas
+            p.text-muted.mb-0 Read-only natural-language access to live Yerbas explorer data.
+          div
+            if ai_status.provider_enabled
+              span.badge.bg-success AI provider connected
+            else
+              span.badge.bg-secondary Local read-only mode
+
+        .alert.alert-info
+          strong Safety boundary:
+          |  Ask Yerbas can read explorer/node data, but it cannot sign transactions, spend YERB, access private keys, or run arbitrary RPC commands.
+
+        form#ask-yerbas-form
+          .mb-3
+            label.form-label(for='ask-question') Ask a question
+            textarea#ask-question.form-control(rows='3', maxlength='500', placeholder='Example: How many smartnodes have 69,000 YERB collateral?')
+          .d-flex.flex-wrap.gap-2
+            button.btn.btn-primary(type='submit')
+              span.fas.fa-comment-dots.me-1
+              | Ask Yerbas
+            button.btn.btn-outline-secondary.ask-example(type='button', data-question='What is the current block height?') Block height
+            button.btn.btn-outline-secondary.ask-example(type='button', data-question='How many smartnodes are currently tracked?') Smartnodes
+            button.btn.btn-outline-secondary.ask-example(type='button', data-question='How many smartnodes have 69,000 YERB collateral?') 69K collateral
+            button.btn.btn-outline-secondary.ask-example(type='button', data-question='What is the current Yerbas supply?') Supply
+
+        #ask-progress.alert.alert-secondary.mt-3.d-none
+          span.spinner-border.spinner-border-sm.me-2(role='status')
+          | Reading Yerbas data...
+
+        #ask-error.alert.alert-danger.mt-3.d-none
+
+        #ask-result.card.mt-3.d-none
+          .card-body
+            .d-flex.justify-content-between.align-items-center.mb-2
+              h5.card-title.mb-0 Answer
+              span#ask-mode.badge.bg-dark
+            p#ask-answer.card-text(style='white-space:pre-wrap')
+            #ask-sources.small.text-muted
+
+        hr
+        .small.text-muted
+          | Built-in questions work without an external model. Set 
+          code YERBAS_AI_BASE_URL
+          |  and 
+          code YERBAS_AI_MODEL
+          |  to enable an OpenAI-compatible chat provider for broader questions.
+
+  script.
+    $(document).ready(function() {
+      function showError(message) {
+        $('#ask-progress').addClass('d-none');
+        $('#ask-result').addClass('d-none');
+        $('#ask-error').removeClass('d-none').text(message);
+      }
+
+      function ask(question) {
+        question = String(question || '').trim();
+
+        if (!question)
+          return showError('Enter a question about Yerbas.');
+
+        $('#ask-error').addClass('d-none');
+        $('#ask-result').addClass('d-none');
+        $('#ask-progress').removeClass('d-none');
+
+        $.ajax({
+          url: '/ext/ai/query',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({ question: question }),
+          success: function(data) {
+            $('#ask-progress').addClass('d-none');
+
+            if (!data || !data.ok)
+              return showError(data && data.error ? data.error : 'Ask Yerbas returned an invalid response.');
+
+            $('#ask-answer').text(data.answer || '');
+            $('#ask-mode').text(data.mode === 'provider' ? 'AI provider' : 'Local read-only');
+
+            var sources = Array.isArray(data.sources) ? data.sources : [];
+            var links = [];
+
+            sources.forEach(function(source) {
+              if (source.path)
+                links.push('<a href="' + source.path + '">' + (source.type || 'source') + '</a>');
+              else if (source.type)
+                links.push(source.type);
+            });
+
+            $('#ask-sources').html(links.length ? 'Explorer sources: ' + links.join(' · ') : '');
+            $('#ask-result').removeClass('d-none');
+          },
+          error: function(xhr) {
+            var message = xhr.responseJSON && xhr.responseJSON.error ?
+              xhr.responseJSON.error :
+              'Ask Yerbas request failed.';
+
+            showError(message);
+          }
+        });
+      }
+
+      $('#ask-yerbas-form').on('submit', function(event) {
+        event.preventDefault();
+        ask($('#ask-question').val());
+      });
+
+      $('.ask-example').on('click', function() {
+        var question = $(this).data('question');
+        $('#ask-question').val(question);
+        ask(question);
+      });
+    });
