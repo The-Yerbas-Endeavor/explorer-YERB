@@ -45,7 +45,10 @@ jobs:
           node --check ./bin/cluster
           node --check ./bin/instance
           node --check ./app.js
+          node --check ./lib/yerbas-ai.js
+          node --check ./routes/ai.js
           node --check ./scripts/prestart.js
+          node -e "require('pug').compileFile('./views/ai.pug')"
 
       - name: Validate installer shell syntax
         run: bash -n ./install-ubuntu26.sh
